@@ -1,0 +1,10 @@
+# id                       required. Unique identifier made of letters, digits, '.', '_' or '-'.
+# reads                    required. HiFi FASTQ(.gz) or PacBio hifi_reads.bam; path or list.
+# genome_size              optional. e.g. 5.2m. If omitted, Phase 1 estimates it.
+# expected_taxon           optional. GTDB-style lineage, e.g. "g__Escherichia".
+# reference                optional. Closest known complete genome FASTA.
+# autocycler_cluster_args  optional. Extra arguments for `autocycler cluster`.
+# autocycler_dir           optional. Previous published autocycler_out/<id> directory.
+- id: isolate01
+  reads: data/isolate01.hifi_reads.fastq.gz
+  expected_taxon: g__Escherichia

@@ -8,10 +8,13 @@ results/
 null/
 
 # Python
+.pytest_cache/
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
 *.egg-info/
+
+results_test/
 
 # OS / editor
 .DS_Store

@@ -1,6 +1,8 @@
 # isolate-genome-assembler: implementation plan
 
-Status: plan, 2026-09-17. Open decisions resolved ([Decisions](#risks-and-open-questions)). Nothing is implemented yet. Phases are listed at the end
+Status: Phase 0 complete, 2026-09-17. The repository skeleton, YAML samplesheet
+validation, profiles, CI, and module inventory are implemented. Phase 1 is next. Open
+decisions are resolved ([Decisions](#risks-and-open-questions)). Phases are listed at the end
 ([Phases](#phases)). Update this header as each phase lands, the same way
 `superresolution-amplicon/docs/*_plan.md` does.
 
@@ -171,13 +173,15 @@ is weaker than usual here.
 ### 5. Containers and modules
 
 - **nf-core modules wherever they exist** (`nf-core modules install`), each pinned by the
-  modules repo commit. They come with versions reporting, stubs and tests. Likely
-  candidates, **to confirm in Phase 0 with `nf-core modules list remote`**: `flye`,
-  `hifiasm`, `canu`, `minimap2/align`, `samtools/*`, `mosdepth`, `bcftools/*`, `seqkit/stats`,
-  `nanoplot`, `sylph/sketch`, `sylph/profile`, `checkm2/predict`, `bakta/bakta`,
-  `busco/busco`, `gtdbtk/classifywf`, `diamond/blastp`, `dnaapler/all`, `bandage/image`,
-  `merqury/*`, `meryl/*`, `skani/*`, `plassembler/*`.
-- **Local modules** (`modules/local/`) for everything else, each on a **pinned
+  modules repo commit. They come with versions reporting, stubs and tests. **Confirmed
+  2026-09-17** against `nf-core/tools` 4.1.0: `flye`, `hifiasm`, `canu`, `minimap2/align`,
+  `samtools/*`, `mosdepth`, `bcftools/*`, `seqkit/stats`, `nanoplot`, `sylph/sketch`,
+  `sylph/profile`, `sylph/query`, `checkm2/predict`, `bakta/bakta`, `busco/busco`,
+  `gtdbtk/classifywf`, `diamond/blastp`, `bandage/image`, `merqury/merqury`, and
+  `skani/{dist,sketch}` are available. `dnaapler/all`, `meryl/*`, and `plassembler/*` are
+  not available as nf-core modules and therefore stay local.
+- **Local modules** (`modules/local/`) for everything else, including the confirmed missing
+  `dnaapler`, `meryl`, and `plassembler` modules, each on a **pinned
   BioContainers image** (Galaxy depot `.sif` for Singularity, quay for Docker): Autocycler,
   Raven, miniasm+Minipolish, metaMDBG, HiFiAdapterFilt, Inspector, sylph query/sylph-tax,
   and the pipeline's own scripts.
