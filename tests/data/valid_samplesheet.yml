@@ -1,0 +1,6 @@
+samples:
+  isolate01:
+    reads: tests/data/isolate01.hifi_reads.fastq
+    genome_size: 5.2m
+    expected_taxon: g__Escherichia
+    autocycler_cluster_args: --cutoff 0.15

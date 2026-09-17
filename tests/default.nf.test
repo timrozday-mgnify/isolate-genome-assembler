@@ -1,0 +1,41 @@
+nextflow_pipeline {
+    name "Phase 0 repository skeleton"
+    script "../main.nf"
+    tag "stub"
+
+    test("empty samplesheet completes in stub mode") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/empty_samplesheet.yml"
+                outdir = "$outputDir/results"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().size() == 0 }
+            )
+        }
+    }
+
+    test("id-keyed samplesheet validates optional metadata") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/valid_samplesheet.yml"
+                outdir = "$outputDir/results"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().size() == 0 }
+            )
+        }
+    }
+}
