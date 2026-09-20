@@ -62,9 +62,12 @@ report arrive in Phases 4 and 5.
 
 ```bash
 nextflow run main.nf -preview
-nf-test test --tag stub
+nf-test test --tag stub --profile docker
 pytest
 ```
+
+The stub tests need a container engine: several modules report their version with an `eval`
+output, which runs the tool even in a stub task.
 
 The pipeline is HiFi-only: it will not accept Illumina reads and will not include short-read
 or Medaka polishing.
