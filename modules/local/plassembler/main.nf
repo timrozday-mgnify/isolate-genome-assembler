@@ -1,0 +1,48 @@
+// Plassembler as an Autocycler input: it finds small plasmids the whole-genome assemblers
+// miss, and NORMALISE_HEADERS gives its circular contigs double cluster weight so a
+// plasmid only it saw still passes cluster QC.
+process PLASSEMBLER {
+    tag "${meta.id}_${subset}"
+    label 'process_medium'
+    label 'assembler'
+
+    container "${workflow.containerEngine in ['singularity', 'apptainer']
+        ? 'https://depot.galaxyproject.org/singularity/plassembler:1.8.5--pyhdfd78af_0'
+        : 'quay.io/biocontainers/plassembler:1.8.5--pyhdfd78af_0'}"
+
+    input:
+    tuple val(meta), val(subset), path(reads)
+    path plassembler_db
+
+    output:
+    tuple val(meta), val('plassembler'), val(subset), path('out/*'), emit: assembly
+    tuple val("${task.process}"), val('plassembler'), eval("plassembler --version | sed 's/^.*version //'"), topic: versions
+
+    when:
+    task.ext.when == null || task.ext.when
+
+    script:
+    def args = task.ext.args ?: ''
+    """
+    plassembler long \\
+        -d ${plassembler_db} \\
+        -l ${reads} \\
+        -o out \\
+        -t ${task.cpus} \\
+        --force \\
+        --skip_qc \\
+        --pacbio_model pacbio-hifi \\
+        ${args}
+
+    find out -mindepth 1 -maxdepth 1 ! -name 'plassembler_plasmids.fasta' \\
+        ! -name 'plassembler_plasmids.gfa' ! -name 'plassembler_summary.tsv' -exec rm -rf {} +
+    # An isolate with no plasmids is a normal result, not a failure.
+    touch out/plassembler_plasmids.fasta
+    """
+
+    stub:
+    """
+    mkdir -p out
+    printf '>1 len=4 circular=true\\nACGT\\n' > out/plassembler_plasmids.fasta
+    """
+}

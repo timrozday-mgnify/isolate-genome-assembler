@@ -1,5 +1,6 @@
 include { READ_QC       } from '../subworkflows/local/read_qc'
 include { CONTAMINATION } from '../subworkflows/local/contamination'
+include { ASSEMBLY      } from '../subworkflows/local/assembly'
 include { REMOVE_HUMAN  } from '../modules/local/remove_human'
 
 workflow ISOLATE_GENOME_ASSEMBLER {
@@ -18,8 +19,12 @@ workflow ISOLATE_GENOME_ASSEMBLER {
             .join(CONTAMINATION.out.remove_human)
     )
 
+    ASSEMBLY(REMOVE_HUMAN.out.reads, READ_QC.out.summary)
+
     emit:
     reads = REMOVE_HUMAN.out.reads
+    assembly = ASSEMBLY.out.assembly
+    assembly_source = ASSEMBLY.out.assembly_source
     read_qc = READ_QC.out.summary
     contamination = CONTAMINATION.out.summary
 }

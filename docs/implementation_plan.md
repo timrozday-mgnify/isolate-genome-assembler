@@ -66,13 +66,16 @@ Autocycler is tuned for:
 | Flye | `flye --pacbio-hifi reads --threads T --out-dir d` | `assembly.fasta` (keeps `circular=` hint from `assembly_info.txt`) |
 | hifiasm | `hifiasm -t T -o d/hifiasm -l 0 -f 0 reads` | `hifiasm.bp.p_ctg.gfa` → fasta |
 | Raven | `raven --threads T --disable-checkpoints --graphical-fragment-assembly out.gfa reads` | stdout fasta |
-| Canu | `canu -p canu -o d genomeSize=G -pacbio-hifi reads` (+ helper's extra args) | `canu.contigs.fasta` with `suggestCircular=yes` hint |
-| miniasm + Minipolish | as in helper (`minimap2 -x ava-pb` → `miniasm` → `minipolish --pacbio`) | polished GFA → fasta |
+| Canu | `canu -p canu -d d -fast genomeSize=G useGrid=false maxThreads=T -pacbio-hifi reads` | `canu.contigs.fasta`: repeat/bubble contigs dropped, circular contigs trimmed by `trim=`, depths from `canu.contigs.layout.tigInfo` |
+| miniasm + Minipolish | `minimap2 -k23 -Xw11 -e0 -m100 reads reads` → `miniasm -f reads` → `minipolish --minimap2-preset map-hifi` | polished GFA → fasta |
 | metaMDBG | `metaMDBG asm --in-hifi reads --out-dir d --threads T` | `contigs.fasta.gz` |
 | Plassembler | `plassembler long -d DB -l reads --pacbio_model pacbio-hifi --skip_qc` | `plassembler_plasmids.fasta`, circular contigs tagged `Autocycler_cluster_weight=2` |
 
-Verify each row against `helper.rs` for the pinned Autocycler version during Phase 2. The
-flags change between releases.
+**Verified against Autocycler v0.7.0's `src/helper.rs` on 2026-09-20.** Two rows were
+wrong in the first draft and are corrected above: Canu needs `-d` (not `-o`), `-fast` and
+`useGrid=false`, and the HiFi miniasm overlap uses `-k23 -Xw11 -e0 -m100`, not the `ava-pb`
+preset, which is for noisy CLR reads. The flags change between releases, so recheck this
+table whenever the pinned Autocycler version moves.
 
 **Do the same logic without Autocycler?** It could be done in Nextflow as a downstream
 module: cluster contigs by mash/skani distance, pick a representative per cluster, and
@@ -614,6 +617,24 @@ results/
   header normalisation, `AUTOCYCLER_CONSENSUS`, `FLYE_FULL`, `SELECT_ASSEMBLY`, re-entry
   via `autocycler_dir`, failure tolerance.
 - **Done when:** stub tests 1–5 pass, and the real mini test gives a fully resolved assembly.
+- **Landed 2026-09-20.** `pytest` passes. Notes and deviations:
+  - **Header normalisation is one process, not seven.** `NORMALISE_HEADERS` runs
+    `bin/normalise_headers.py`, which holds every assembler's rules ported from
+    `helper.rs`, so the assembler containers stay minimal and the rules have one pytest
+    rather than seven copies of the same awk.
+  - **`autocycler helper` is not used**, as planned, so the miniasm arm is three processes
+    (`MINIASM_OVERLAP`, `MINIASM`, `MINIPOLISH`): no BioContainer carries both miniasm and
+    minimap2.
+  - **`plassembler_db` is now a required database param**, built by `--prepare_databases`.
+  - **Assembler failure tolerance is a `withLabel: 'assembler'` rule** in
+    `conf/base.config`: retry the retryable exit codes, then `ignore`. The same label gives
+    those processes `scratch = true`.
+  - **Two test-only params**, `stub_fully_resolved` and `stub_fail_assemblies`, exist so
+    stub tests 4 and 5 can force the fallback and a failed input assembly.
+  - **Still outstanding:** the real mini test. It needs the simulated read set from
+    [Phase 6](#phase-6-benchmark-and-defaults), and the containerised stub tests have not
+    been run on this machine — its Docker storage is out of disk — so CI is their first
+    real run.
 
 ### Phase 3: finishing + plasmid audit
 - Stage 5, Plassembler full-read audit, replicon classification.
