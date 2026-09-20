@@ -1,7 +1,8 @@
 # isolate-genome-assembler: implementation plan
 
-Status: Phase 0 complete, 2026-09-17. The repository skeleton, YAML samplesheet
-validation, profiles, CI, and module inventory are implemented. Phase 1 is next. Open
+Status: Phase 1 complete, 2026-09-20. Stages 1–2 (read QC and the sylph contamination
+screen) and the database build are implemented and covered by stub and unit tests; the real
+two-isolate validation run is still outstanding (see Phase 1 below). Phase 2 is next. Open
 decisions are resolved ([Decisions](#risks-and-open-questions)). Phases are listed at the end
 ([Phases](#phases)). Update this header as each phase lands, the same way
 `superresolution-amplicon/docs/*_plan.md` does.
@@ -595,9 +596,18 @@ results/
 - **Done when:** `nextflow run main.nf -preview` and the empty stub test pass in CI.
 
 ### Phase 1: read QC + contamination
-- Stages 1–2, `PREPARE_DATABASES` for sylph GTDB/human and CHM13.
+- Stages 1–2, database preparation for sylph GTDB/human and CHM13.
 - **Done when:** the stub test passes, and a real run on one isolate plus one deliberately
   mixed read set (two isolates concatenated 95:5) passes and fails the gates as expected.
+- **Landed 2026-09-20.** Stub tests and `pytest` pass. Two deviations from the text above:
+  - **`--prepare_databases`, not `-entry PREPARE_DATABASES`.** Nextflow's strict syntax
+    (25.10+) dropped `-entry`, so the database build is selected with a param instead.
+  - **Stage 1–2 processes emit measurements only.** `read_qc.tsv` and
+    `contamination_summary.json` carry no pass/warn/fail, because the thresholds and
+    `qc_gates.py` belong to [Phase 4](#phase-4-checks--gates). The one threshold Phase 1
+    must act on is `contam_max_human`, which drives `--remove_human auto`.
+  - **Still outstanding:** the real one-isolate and 95:5 mixed read-set runs. They need the
+    ~15 GB GTDB database and the Phase 4 gates, so they are run together with Phase 4.
 
 ### Phase 2: assembly + consensus
 - Subsample, 7 assembler processes (flags checked against Autocycler's `helper.rs`),

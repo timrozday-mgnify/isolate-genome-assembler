@@ -1,5 +1,5 @@
 nextflow_pipeline {
-    name "Phase 0 repository skeleton"
+    name "Pipeline stub tests"
     script "../main.nf"
     tag "stub"
 
@@ -21,20 +21,65 @@ nextflow_pipeline {
         }
     }
 
-    test("id-keyed samplesheet validates optional metadata") {
+    test("one sample runs read QC and the contamination screen") {
         options "-stub"
 
         when {
             params {
                 input = "${baseDir}/tests/data/valid_samplesheet.yml"
                 outdir = "$outputDir/results"
+                publish_outputs = true
             }
         }
 
         then {
             assertAll(
                 { assert workflow.success },
-                { assert workflow.trace.tasks().size() == 0 }
+                { assert workflow.trace.tasks().size() == 16 },
+                { assert path("$outputDir/results/reads/isolate01/isolate01.read_qc.tsv").exists() },
+                { assert path("$outputDir/results/reads/isolate01/isolate01.adapters.tsv").exists() },
+                { assert path("$outputDir/results/reads/isolate01/isolate01.gc_hist.tsv").exists() },
+                { assert path("$outputDir/results/contamination/isolate01/isolate01.contamination_summary.json").exists() },
+                { assert path("$outputDir/results/contamination/isolate01/isolate01.human_fraction.tsv").exists() }
+            )
+        }
+    }
+
+    test("missing database params fail before any task runs") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/valid_samplesheet.yml"
+                outdir = "$outputDir/results"
+                sylph_gtdb_db = null
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert workflow.stdout.any { it.contains('--sylph_gtdb_db') } || workflow.errorReport.contains('--sylph_gtdb_db') }
+            )
+        }
+    }
+
+    test("--prepare_databases downloads and sketches the databases") {
+        options "-stub"
+
+        when {
+            params {
+                prepare_databases = true
+                outdir = "$outputDir/results"
+                database_dir = "$outputDir/databases"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().size() == 5 },
+                { assert path("$outputDir/databases/sylph_human_db.syldb").exists() }
             )
         }
     }

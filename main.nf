@@ -1,4 +1,5 @@
 include { ISOLATE_GENOME_ASSEMBLER } from './workflows/isolate_genome_assembler'
+include { PREPARE_DATABASES as BUILD_DATABASES } from './subworkflows/local/prepare_databases'
 
 def isNonBlank(value) {
     value != null && value.toString().trim()
@@ -130,12 +131,31 @@ def parseSamplesheet(samplesheet) {
     }
 }
 
-workflow {
-    ch_samples = params.input ? Channel.fromList(parseSamplesheet(params.input)) : Channel.empty()
-
-    if (!params.input) {
-        log.info 'No --input supplied: validated an empty workflow. See assets/samplesheet.example.yml for the required YAML format.'
+def requireDatabases() {
+    def missing = ['sylph_gtdb_db', 'sylph_gtdb_taxonomy', 'sylph_human_db', 'human_reference']
+        .findAll { !isNonBlank(params[it]) }
+    if (missing) {
+        error "Missing required database param(s): ${missing.collect { "--${it}" }.join(', ')}. Build them once with `nextflow run main.nf --prepare_databases`."
     }
+}
 
-    ISOLATE_GENOME_ASSEMBLER(ch_samples)
+workflow {
+    // Run once per site: `nextflow run main.nf --prepare_databases --database_dir /shared/dbs`.
+    // Nextflow's strict syntax dropped `-entry`, so the database build is a param, not an
+    // entry workflow.
+    if (params.prepare_databases) {
+        BUILD_DATABASES()
+    }
+    else {
+        ch_samples = params.input ? Channel.fromList(parseSamplesheet(params.input)) : Channel.empty()
+
+        if (params.input) {
+            requireDatabases()
+        }
+        else {
+            log.info 'No --input supplied: validated an empty workflow. See assets/samplesheet.example.yml for the required YAML format.'
+        }
+
+        ISOLATE_GENOME_ASSEMBLER(ch_samples)
+    }
 }
