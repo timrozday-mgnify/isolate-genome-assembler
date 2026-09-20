@@ -44,7 +44,7 @@ nextflow_pipeline {
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() },
                 { assert path("$outputDir/results/assemblies/isolate01/isolate01.assembly_attempts.tsv").exists() },
                 { assert path("$outputDir/results/assemblies/isolate01/autocycler_out").exists() },
-                { assert path("$outputDir/results/assemblies/isolate01/isolate01.assembly_source.tsv").text.contains('autocycler') }
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly_source.tsv").text.contains('autocycler') }
             )
         }
     }
@@ -65,11 +65,11 @@ nextflow_pipeline {
             assertAll(
                 { assert workflow.success },
                 { assert workflow.trace.tasks().size() == 38 },
-                { assert workflow.trace.tasks().every { !it.process.contains('CANU') } },
-                { assert workflow.trace.tasks().every { !it.process.contains('HIFIASM') } },
-                { assert workflow.trace.tasks().every { !it.process.contains('MINIASM') } },
-                { assert workflow.trace.tasks().every { !it.process.contains('METAMDBG') } },
-                { assert workflow.trace.tasks().every { !it.process.contains('PLASSEMBLER') } }
+                { assert workflow.trace.tasks().every { !it.name.contains('CANU') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('HIFIASM') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('MINIASM') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('METAMDBG') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('PLASSEMBLER') } }
             )
         }
     }
@@ -91,8 +91,8 @@ nextflow_pipeline {
                 // Read QC and contamination, then only the Flye fallback, its
                 // normalisation, the reclustering and the selection.
                 { assert workflow.trace.tasks().size() == 20 },
-                { assert workflow.trace.tasks().every { !it.process.contains('SUBSAMPLE') } },
-                { assert workflow.trace.tasks().every { it.process != 'ISOLATE_GENOME_ASSEMBLER:ASSEMBLY:FLYE' } },
+                { assert workflow.trace.tasks().every { !it.name.contains('SUBSAMPLE') } },
+                { assert workflow.trace.tasks().every { !it.name.startsWith('ISOLATE_GENOME_ASSEMBLER:ASSEMBLY:FLYE (') } },
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() }
             )
         }
@@ -114,7 +114,7 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert path("$outputDir/results/assemblies/isolate01/isolate01.assembly_source.tsv").text.contains('fallback_flye') }
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly_source.tsv").text.contains('fallback_flye') }
             )
         }
     }

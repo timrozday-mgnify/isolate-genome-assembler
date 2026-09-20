@@ -34,9 +34,7 @@ def normalise(tmp_path: Path, assembler: str, subset: str = "01") -> Path:
 def test_flye_takes_circularity_and_depth_from_assembly_info(tmp_path: Path) -> None:
     (tmp_path / "assembly.fasta").write_text(">contig_1\nACGTACGT\n>contig_2\nAAAA\n")
     (tmp_path / "assembly_info.txt").write_text(
-        "#seq_name\tlength\tcov.\tcirc.\n"
-        "contig_1\t8\t31\tY\n"
-        "contig_2\t4\t9\tN\n"
+        "#seq_name\tlength\tcov.\tcirc.\ncontig_1\t8\t31\tY\ncontig_2\t4\t9\tN\n"
     )
 
     assert headers(normalise(tmp_path, "flye")) == [
@@ -51,14 +49,18 @@ def test_canu_drops_repeats_and_trims_circular_contigs(tmp_path: Path) -> None:
         ">tig00000002 len=4 suggestRepeat=yes\nACGT\n"
         ">tig00000003 len=4 suggestBubble=yes\nACGT\n"
     )
-    (tmp_path / "canu.contigs.layout.tigInfo").write_text("#tigID\tlength\tcoverage\n1\t8\t42\n")
+    (tmp_path / "canu.contigs.layout.tigInfo").write_text(
+        "#tigID\tlength\tcoverage\n1\t8\t42\n"
+    )
 
     output = normalise(tmp_path, "canu")
     assert headers(output) == ["canu_01_1 length=4 depth=42 circular=true"]
     assert output.read_text().splitlines()[1] == "CCGG"
 
 
-def test_gfa_segments_become_contigs_with_circular_and_depth_tags(tmp_path: Path) -> None:
+def test_gfa_segments_become_contigs_with_circular_and_depth_tags(
+    tmp_path: Path,
+) -> None:
     (tmp_path / "hifiasm.bp.p_ctg.gfa").write_text(
         "H\tVN:Z:1.0\n"
         "S\tptg000001c\tACGTACGT\tLN:i:8\tdp:f:30\n"
@@ -79,7 +81,9 @@ def test_metamdbg_gzipped_contigs_are_read(tmp_path: Path) -> None:
     assert headers(normalise(tmp_path, "metamdbg")) == ["metamdbg_01_1 length=8"]
 
 
-def test_plassembler_circular_plasmids_get_double_cluster_weight(tmp_path: Path) -> None:
+def test_plassembler_circular_plasmids_get_double_cluster_weight(
+    tmp_path: Path,
+) -> None:
     (tmp_path / "plassembler_plasmids.fasta").write_text(
         ">1 len=4 circular=true depth=120\nACGT\n>2 len=4\nAAAA\n"
     )

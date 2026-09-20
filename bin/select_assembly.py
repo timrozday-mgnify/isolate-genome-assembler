@@ -23,7 +23,10 @@ def has_sequence(path: Path | None) -> bool:
     """True when the FASTA exists and holds at least one non-empty sequence."""
     if path is None or not path.exists():
         return False
-    return any(line.strip() and not line.startswith(">") for line in path.read_text().splitlines())
+    return any(
+        line.strip() and not line.startswith(">")
+        for line in path.read_text().splitlines()
+    )
 
 
 def fully_resolved(metrics: Path | None) -> bool | None:
@@ -36,7 +39,9 @@ def fully_resolved(metrics: Path | None) -> bool | None:
     return match.group(1).lower() == "true"
 
 
-def select(consensus: Path | None, metrics: Path | None, fallback: Path | None) -> tuple[Path, str, str]:
+def select(
+    consensus: Path | None, metrics: Path | None, fallback: Path | None
+) -> tuple[Path, str, str]:
     """Return the assembly to use, its source label, and why it was chosen."""
     resolved = fully_resolved(metrics)
     if resolved and consensus is not None and has_sequence(consensus):
@@ -51,17 +56,29 @@ def select(consensus: Path | None, metrics: Path | None, fallback: Path | None) 
 
     if fallback is not None and has_sequence(fallback):
         return fallback, "fallback_flye", reason
-    raise SystemExit(f"no assembly available: {reason}, and the Flye fallback is empty too")
+    raise SystemExit(
+        f"no assembly available: {reason}, and the Flye fallback is empty too"
+    )
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sample", required=True)
-    parser.add_argument("--consensus", type=Path, help="autocycler consensus_assembly.fasta")
-    parser.add_argument("--metrics", type=Path, help="autocycler consensus_assembly.yaml")
-    parser.add_argument("--fallback", type=Path, help="Flye assembly of the full read set")
-    parser.add_argument("--output", type=Path, required=True, help="Selected assembly FASTA")
-    parser.add_argument("--summary", type=Path, required=True, help="One-row TSV of the choice")
+    parser.add_argument(
+        "--consensus", type=Path, help="autocycler consensus_assembly.fasta"
+    )
+    parser.add_argument(
+        "--metrics", type=Path, help="autocycler consensus_assembly.yaml"
+    )
+    parser.add_argument(
+        "--fallback", type=Path, help="Flye assembly of the full read set"
+    )
+    parser.add_argument(
+        "--output", type=Path, required=True, help="Selected assembly FASTA"
+    )
+    parser.add_argument(
+        "--summary", type=Path, required=True, help="One-row TSV of the choice"
+    )
     return parser.parse_args(argv)
 
 

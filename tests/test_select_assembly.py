@@ -28,20 +28,32 @@ def run(tmp_path: Path, **kwargs: Path) -> tuple[str, str]:
 
 def test_a_fully_resolved_consensus_is_used(tmp_path: Path) -> None:
     consensus = write(tmp_path / "consensus.fasta", ">cluster_1\nACGT\n")
-    metrics = write(tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: true\n")
+    metrics = write(
+        tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: true\n"
+    )
     fallback = write(tmp_path / "flye.fasta", ">flye_full_1\nAAAA\n")
 
-    assembly, summary = run(tmp_path, consensus=consensus, metrics=metrics, fallback=fallback)
+    assembly, summary = run(
+        tmp_path, consensus=consensus, metrics=metrics, fallback=fallback
+    )
     assert assembly == ">cluster_1\nACGT\n"
-    assert summary.splitlines()[1].split("\t")[:3] == ["isolate01", "autocycler", "true"]
+    assert summary.splitlines()[1].split("\t")[:3] == [
+        "isolate01",
+        "autocycler",
+        "true",
+    ]
 
 
 def test_an_unresolved_consensus_falls_back_to_flye(tmp_path: Path) -> None:
     consensus = write(tmp_path / "consensus.fasta", ">cluster_1\nACGT\n")
-    metrics = write(tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: false\n")
+    metrics = write(
+        tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: false\n"
+    )
     fallback = write(tmp_path / "flye.fasta", ">flye_full_1\nAAAA\n")
 
-    assembly, summary = run(tmp_path, consensus=consensus, metrics=metrics, fallback=fallback)
+    assembly, summary = run(
+        tmp_path, consensus=consensus, metrics=metrics, fallback=fallback
+    )
     assert assembly == ">flye_full_1\nAAAA\n"
     row = summary.splitlines()[1].split("\t")
     assert row[1:3] == ["fallback_flye", "false"]
@@ -60,16 +72,22 @@ def test_a_crashed_autocycler_leaves_no_verdict_and_falls_back(tmp_path: Path) -
 
 def test_an_empty_consensus_is_not_mistaken_for_an_assembly(tmp_path: Path) -> None:
     consensus = write(tmp_path / "consensus.fasta", "")
-    metrics = write(tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: true\n")
+    metrics = write(
+        tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: true\n"
+    )
     fallback = write(tmp_path / "flye.fasta", ">flye_full_1\nAAAA\n")
 
-    assembly, summary = run(tmp_path, consensus=consensus, metrics=metrics, fallback=fallback)
+    assembly, summary = run(
+        tmp_path, consensus=consensus, metrics=metrics, fallback=fallback
+    )
     assert assembly == ">flye_full_1\nAAAA\n"
     assert "empty" in summary.splitlines()[1]
 
 
 def test_no_usable_assembly_at_all_is_an_error(tmp_path: Path) -> None:
-    metrics = write(tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: false\n")
+    metrics = write(
+        tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: false\n"
+    )
     fallback = write(tmp_path / "flye.fasta", "")
 
     with pytest.raises(SystemExit):

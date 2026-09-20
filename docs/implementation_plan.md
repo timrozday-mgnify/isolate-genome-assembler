@@ -631,10 +631,14 @@ results/
     those processes `scratch = true`.
   - **Two test-only params**, `stub_fully_resolved` and `stub_fail_assemblies`, exist so
     stub tests 4 and 5 can force the fallback and a failed input assembly.
+  - **`scratch = true` lives in `conf/slurm.config`, not `conf/base.config`.** It is an
+    HPC filesystem concern, and it breaks a local containerised run: `/tmp` inside the
+    images is not writable by the mapped uid, so every assembler task fails on
+    `.command.trace`.
+  - **`trace.fields` now includes `name`.** The custom field list had replaced the
+    default, and nf-test's trace parser needs that column to identify a task.
   - **Still outstanding:** the real mini test. It needs the simulated read set from
-    [Phase 6](#phase-6-benchmark-and-defaults), and the containerised stub tests have not
-    been run on this machine — its Docker storage is out of disk — so CI is their first
-    real run.
+    [Phase 6](#phase-6-benchmark-and-defaults).
 
 ### Phase 3: finishing + plasmid audit
 - Stage 5, Plassembler full-read audit, replicon classification.

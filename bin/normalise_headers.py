@@ -111,7 +111,9 @@ def plain_contigs(path: Path) -> list[Contig]:
         match = re.search(r"depth=([0-9.]+)", lowered)
         if match:
             depth = match.group(1)
-        contigs.append(Contig(sequence, circular="circular=true" in lowered, depth=depth))
+        contigs.append(
+            Contig(sequence, circular="circular=true" in lowered, depth=depth)
+        )
     return contigs
 
 
@@ -195,7 +197,11 @@ def collect(assembler: str, directory: Path) -> list[Contig]:
     """Find the assembler's output in `directory` and read it with that tool's rules."""
     if assembler == "flye":
         fasta = first_match(directory, "assembly.fasta")
-        return flye_contigs(fasta, first_match(directory, "assembly_info.txt")) if fasta else []
+        return (
+            flye_contigs(fasta, first_match(directory, "assembly_info.txt"))
+            if fasta
+            else []
+        )
 
     if assembler == "canu":
         fasta = first_match(directory, "*.contigs.fasta")
@@ -217,10 +223,18 @@ def collect(assembler: str, directory: Path) -> list[Contig]:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--assembler", required=True, help="Assembler that produced the input")
-    parser.add_argument("--subset", required=True, help="Subsampled read set id, e.g. 01")
-    parser.add_argument("--input-dir", type=Path, default=Path(), help="Directory of native output")
-    parser.add_argument("--output", type=Path, required=True, help="Normalised FASTA to write")
+    parser.add_argument(
+        "--assembler", required=True, help="Assembler that produced the input"
+    )
+    parser.add_argument(
+        "--subset", required=True, help="Subsampled read set id, e.g. 01"
+    )
+    parser.add_argument(
+        "--input-dir", type=Path, default=Path(), help="Directory of native output"
+    )
+    parser.add_argument(
+        "--output", type=Path, required=True, help="Normalised FASTA to write"
+    )
     return parser.parse_args(argv)
 
 
@@ -232,7 +246,10 @@ def main(argv: list[str] | None = None) -> int:
             name = f"{args.assembler}_{args.subset}_{index}"
             handle.write(f">{contig.header(name)}\n{contig.sequence}\n")
     if not contigs:
-        print(f"no contigs found for {args.assembler} subset {args.subset}", file=sys.stderr)
+        print(
+            f"no contigs found for {args.assembler} subset {args.subset}",
+            file=sys.stderr,
+        )
     return 0
 
 
