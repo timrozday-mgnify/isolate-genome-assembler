@@ -77,26 +77,39 @@ def summarise(args: argparse.Namespace) -> dict[str, object]:
         "sample": args.sample,
         "species": species,
         "dominant_species": dominant["species"] if dominant else "",
-        "dominant_abundance": (dominant["sequence_abundance"] / 100) if dominant else 0.0,
+        "dominant_abundance": (dominant["sequence_abundance"] / 100)
+        if dominant
+        else 0.0,
         "secondary_species": secondary["species"] if secondary else "",
-        "secondary_abundance": (secondary["sequence_abundance"] / 100) if secondary else 0.0,
+        "secondary_abundance": (secondary["sequence_abundance"] / 100)
+        if secondary
+        else 0.0,
         "unknown_fraction": max(0.0, 1.0 - total_abundance / 100),
         "sylph_profile_rows": len(read_tsv(args.sylph_profile)),
         "human_query_hits": len(human_rows),
-        "human_query_max_ani": max((number(row.get("Adjusted_ANI")) for row in human_rows), default=0.0),
+        "human_query_max_ani": max(
+            (number(row.get("Adjusted_ANI")) for row in human_rows), default=0.0
+        ),
         "human_fraction": human_fraction,
         "expected_taxon": args.expected_taxon or "",
-        "expected_taxon_matches": taxon_matches(args.expected_taxon, dominant["clade"] if dominant else ""),
+        "expected_taxon_matches": taxon_matches(
+            args.expected_taxon, dominant["clade"] if dominant else ""
+        ),
     }
 
 
-def human_removal_decision(summary: dict[str, object], mode: str, max_human_fraction: float) -> bool:
+def human_removal_decision(
+    summary: dict[str, object], mode: str, max_human_fraction: float
+) -> bool:
     """`auto` removes human reads only when human is actually detected."""
     if mode == "true":
         return True
     if mode == "false":
         return False
-    return bool(summary["human_query_hits"]) or summary["human_fraction"] >= max_human_fraction  # type: ignore[operator]
+    return (
+        bool(summary["human_query_hits"])
+        or summary["human_fraction"] >= max_human_fraction
+    )  # type: ignore[operator]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -107,7 +120,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--human-query", type=Path)
     parser.add_argument("--human-fraction", type=Path)
     parser.add_argument("--expected-taxon")
-    parser.add_argument("--remove-human", choices=["auto", "true", "false"], default="auto")
+    parser.add_argument(
+        "--remove-human", choices=["auto", "true", "false"], default="auto"
+    )
     parser.add_argument("--max-human-fraction", type=float, default=0.001)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--remove-human-decision", type=Path, required=True)
@@ -117,7 +132,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     summary = summarise(args)
-    remove_human = human_removal_decision(summary, args.remove_human, args.max_human_fraction)
+    remove_human = human_removal_decision(
+        summary, args.remove_human, args.max_human_fraction
+    )
     summary["remove_human_mode"] = args.remove_human
     summary["remove_human_applied"] = remove_human
     args.output.write_text(json.dumps(summary, indent=2) + "\n")

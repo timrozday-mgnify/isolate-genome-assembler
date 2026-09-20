@@ -37,7 +37,9 @@ def summarise(tmp_path: Path, **overrides) -> dict:
     return contamination_summary.summarise(namespace)
 
 
-def test_species_are_ranked_and_the_unknown_fraction_is_the_remainder(tmp_path: Path) -> None:
+def test_species_are_ranked_and_the_unknown_fraction_is_the_remainder(
+    tmp_path: Path,
+) -> None:
     tax = write_tax(tmp_path, [(KLEBSIELLA, 4.0, 3.0), (ECOLI, 92.0, 95.0)])
     summary = summarise(tmp_path, sylph_tax=tax)
     assert summary["dominant_species"] == "s__Escherichia coli"
@@ -57,11 +59,23 @@ def test_non_species_rows_are_ignored(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("expected", "matches"),
-    [("g__Escherichia", True), ("s__Escherichia coli", True), ("g__Klebsiella", False), (None, None)],
+    [
+        ("g__Escherichia", True),
+        ("s__Escherichia coli", True),
+        ("g__Klebsiella", False),
+        (None, None),
+    ],
 )
-def test_expected_taxon_is_matched_at_any_rank(tmp_path: Path, expected, matches) -> None:
+def test_expected_taxon_is_matched_at_any_rank(
+    tmp_path: Path, expected, matches
+) -> None:
     tax = write_tax(tmp_path, [(ECOLI, 100.0, 100.0)])
-    assert summarise(tmp_path, sylph_tax=tax, expected_taxon=expected)["expected_taxon_matches"] is matches
+    assert (
+        summarise(tmp_path, sylph_tax=tax, expected_taxon=expected)[
+            "expected_taxon_matches"
+        ]
+        is matches
+    )
 
 
 def test_missing_inputs_give_an_empty_summary(tmp_path: Path) -> None:
@@ -83,7 +97,9 @@ def test_missing_inputs_give_an_empty_summary(tmp_path: Path) -> None:
 )
 def test_human_removal_decision(mode, hits, fraction, expected) -> None:
     summary = {"human_query_hits": hits, "human_fraction": fraction}
-    assert contamination_summary.human_removal_decision(summary, mode, 0.001) is expected
+    assert (
+        contamination_summary.human_removal_decision(summary, mode, 0.001) is expected
+    )
 
 
 def test_main_writes_the_json_and_the_decision_file(tmp_path: Path) -> None:

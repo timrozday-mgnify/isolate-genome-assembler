@@ -66,7 +66,9 @@ def read_seqkit_stats(path: Path | None) -> dict[str, str]:
     """Normalise `seqkit stats --tabular --all` headers into snake_case keys."""
     row = read_tsv_row(path)
     return {
-        key.strip().lower().replace("(%)", "").strip().replace(" ", "_"): value for key, value in row.items() if key
+        key.strip().lower().replace("(%)", "").strip().replace(" ", "_"): value
+        for key, value in row.items()
+        if key
     }
 
 
@@ -147,7 +149,9 @@ def summarise(args: argparse.Namespace) -> dict[str, object]:
 
     disagreement = None
     if autocycler_size and genomescope_size:
-        disagreement = abs(autocycler_size - genomescope_size) / max(autocycler_size, genomescope_size)
+        disagreement = abs(autocycler_size - genomescope_size) / max(
+            autocycler_size, genomescope_size
+        )
 
     bases = normalisation.get("bases_kept") or stats.get("sum_len")
 
@@ -165,8 +169,12 @@ def summarise(args: argparse.Namespace) -> dict[str, object]:
         "q30_fraction": ratio(stats.get("q30"), 100),
         "gc_mean": gc_mean,
         "gc_sd": gc_sd,
-        "duplicate_id_fraction": ratio(duplicates.get("duplicate_ids"), duplicates.get("reads")),
-        "duplicate_sequence_fraction": ratio(duplicates.get("duplicate_sequences"), duplicates.get("reads")),
+        "duplicate_id_fraction": ratio(
+            duplicates.get("duplicate_ids"), duplicates.get("reads")
+        ),
+        "duplicate_sequence_fraction": ratio(
+            duplicates.get("duplicate_sequences"), duplicates.get("reads")
+        ),
         "adapter_fraction": adapters.get("adapter_fraction"),
         "genome_size_declared": declared_size,
         "genome_size_autocycler": autocycler_size,
@@ -200,7 +208,9 @@ def main(argv: list[str] | None = None) -> int:
     with args.output.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=COLUMNS, delimiter="\t")
         writer.writeheader()
-        writer.writerow({key: "" if value is None else value for key, value in row.items()})
+        writer.writerow(
+            {key: "" if value is None else value for key, value in row.items()}
+        )
     return 0
 
 

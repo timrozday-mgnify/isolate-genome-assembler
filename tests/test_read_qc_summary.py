@@ -15,7 +15,13 @@ _spec.loader.exec_module(read_qc_summary)
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [("5.2m", 5_200_000), ("500k", 500_000), ("2G", 2_000_000_000), ("4600000", 4_600_000), (None, None)],
+    [
+        ("5.2m", 5_200_000),
+        ("500k", 500_000),
+        ("2G", 2_000_000_000),
+        ("4600000", 4_600_000),
+        (None, None),
+    ],
 )
 def test_parse_size(value, expected) -> None:
     assert read_qc_summary.parse_size(value) == expected
@@ -67,7 +73,9 @@ def write_measurements(tmp_path: Path) -> dict[str, Path]:
     paths["genome_size_autocycler"] = tmp_path / "gs.txt"
     paths["genome_size_autocycler"].write_text("100000\n")
     paths["genomescope_summary"] = tmp_path / "summary.txt"
-    paths["genomescope_summary"].write_text("Genome Haploid Length 125,000 bp\nHeterozygosity 0.01%\n")
+    paths["genomescope_summary"].write_text(
+        "Genome Haploid Length 125,000 bp\nHeterozygosity 0.01%\n"
+    )
     return paths
 
 
@@ -107,7 +115,9 @@ def test_summary_prefers_the_samplesheet_genome_size(tmp_path: Path) -> None:
     assert float(row["depth"]) == pytest.approx(2.5)
 
 
-def test_summary_falls_back_to_autocycler_and_flags_disagreement(tmp_path: Path) -> None:
+def test_summary_falls_back_to_autocycler_and_flags_disagreement(
+    tmp_path: Path,
+) -> None:
     row = run(tmp_path, [])
     assert row["genome_size_source"] == "autocycler"
     assert float(row["genome_size_used"]) == 100_000
