@@ -123,8 +123,10 @@ workflow ASSEMBLY {
         AUTOCYCLER_CONSENSUS.out.consensus
             .join(AUTOCYCLER_CONSENSUS.out.metrics)
             .join(NORMALISE_HEADERS_FULL.out.assembly, remainder: true)
+            // A fallback with no consensus arrives as [meta, null, fallback], one null for
+            // the whole missing side, so it must go before the four-way destructuring.
+            .filter { row -> row[1] != null }
             .map { meta, consensus, metrics, fallback -> [meta, consensus, metrics, fallback ?: []] }
-            .filter { _meta, consensus, _metrics, _fallback -> consensus }
     )
 
     emit:
