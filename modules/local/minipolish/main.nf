@@ -20,11 +20,15 @@ process MINIPOLISH {
 
     script:
     def args = task.ext.args ?: ''
+    // --skip_initial: the per-segment round aborts the whole run when Racon returns nothing
+    // for a single-read segment (Minipolish 0.2.1 exits before its own drop-the-segment
+    // fallback). The full rounds still polish every segment against all the reads.
     """
     mkdir -p out
     minipolish \\
         --threads ${task.cpus} \\
         --minimap2-preset map-hifi \\
+        --skip_initial \\
         ${args} \\
         ${reads} \\
         ${graph} \\
