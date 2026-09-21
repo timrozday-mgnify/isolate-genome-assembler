@@ -1,0 +1,11 @@
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    css: report.css
+    page-layout: full
+execute:
+  echo: false
+  warning: false

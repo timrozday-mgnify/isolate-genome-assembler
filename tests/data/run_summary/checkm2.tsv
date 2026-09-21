@@ -1,0 +1,4 @@
+sample	Name	Completeness	Contamination	Completeness_Model_Used	Translation_Table_Used	Coding_Density	Contig_N50	Genome_Size	GC_Content
+iso_pass	iso_pass	99.9	0.2	Neural Network (Specific Model)	11	0.879	200000	264000	0.51
+iso_warn	iso_warn	99.5	0.6	Neural Network (Specific Model)	11	0.879	200000	264000	0.51
+iso_fail	iso_fail	97.0	22.5	Neural Network (Specific Model)	11	0.879	200000	264000	0.51

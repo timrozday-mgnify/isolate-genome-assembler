@@ -1,0 +1,4 @@
+sample	query	query_length	query_start	query_end	strand	target	target_length	target_start	target_end	matches	block_length	mapq
+iso_pass	iso_pass_chromosome	200000	0	90000	+	ref_chromosome	200000	0	90000	90000	90000	60
+iso_pass	iso_pass_chromosome	200000	90000	140000	-	ref_chromosome	200000	90000	140000	50000	50000	60
+iso_pass	iso_pass_chromosome	200000	140000	200000	+	ref_chromosome	200000	140000	200000	60000	60000	60

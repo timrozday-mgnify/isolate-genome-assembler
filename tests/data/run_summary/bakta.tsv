@@ -1,0 +1,4 @@
+sample	Length	Count	GC	N50	N ratio	coding density	tRNAs	tmRNAs	rRNAs	ncRNAs	CRISPR arrays	CDSs	pseudogenes	hypotheticals
+iso_pass	264000	3	50.6	200000	0.0	87.9	86	1	22	70	1	250	4	20
+iso_warn	264000	3	50.6	200000	0.0	87.9	86	1	22	70	1	250	4	20
+iso_fail	264000	3	50.6	200000	0.0	87.9	86	1	22	70	1	250	4	20

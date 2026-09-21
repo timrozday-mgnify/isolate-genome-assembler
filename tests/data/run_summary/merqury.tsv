@@ -1,0 +1,4 @@
+sample	assembly	asm_only_kmers	kmers	qv	error
+iso_pass	iso_pass	12	4800000	62.1	6.17e-07
+iso_warn	iso_warn	12	4800000	55.3	2.95e-06
+iso_fail	iso_fail	12	4800000	38.0	0.000158

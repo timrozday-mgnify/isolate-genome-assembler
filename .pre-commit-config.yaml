@@ -2,7 +2,8 @@ default_stages: [pre-commit]
 
 # Vendored nf-core modules are kept byte-identical to the modules repo so `nf-core modules
 # lint` and `nf-core modules update` stay clean; the whitespace hooks must not rewrite them.
-exclude: '^modules/nf-core/'
+# The report fixture is generated, and its TSVs end rows with empty fields by design.
+exclude: '^(modules/nf-core/|tests/data/run_summary/)'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks

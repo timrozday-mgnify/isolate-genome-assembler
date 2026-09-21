@@ -1,0 +1,7 @@
+sample	contig	replicon_type	length	median_depth	depth_ratio
+iso_pass	iso_pass_chromosome	chromosome	200000	120.0	1.0
+iso_pass	iso_pass_plasmid_1	plasmid	60000	132.0	1.1
+iso_pass	iso_pass_plasmid_2	plasmid	4000	1440.0	12.0
+iso_warn	iso_warn_chromosome	chromosome	200000	45.0	1.0
+iso_warn	iso_warn_plasmid_1	plasmid	90000	36.0	0.8
+iso_fail	iso_fail_chromosome	chromosome	200000	80.0	1.0

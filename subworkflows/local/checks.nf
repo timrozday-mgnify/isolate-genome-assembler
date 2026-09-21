@@ -15,6 +15,7 @@ include { CHECKM2_PREDICT             } from '../../modules/nf-core/checkm2/pred
 include { BUSCO_BUSCO                 } from '../../modules/nf-core/busco/busco'
 include { GTDBTK_CLASSIFYWF           } from '../../modules/nf-core/gtdbtk/classifywf'
 include { SKANI_DIST as SKANI_REFERENCE } from '../../modules/nf-core/skani/dist'
+include { MINIMAP2_ALIGN as MINIMAP2_REFERENCE } from '../../modules/nf-core/minimap2/align'
 include { BANDAGE_IMAGE               } from '../../modules/nf-core/bandage/image'
 include { ASSEMBLER_CONTRIBUTION      } from '../../modules/local/assembler_contribution'
 
@@ -105,6 +106,8 @@ workflow CHECKS {
             reference: [meta, meta.reference]
         }
     SKANI_REFERENCE(ch_reference_in.query, ch_reference_in.reference)
+    // The alignment blocks the report draws as a dotplot against the reference.
+    MINIMAP2_REFERENCE(ch_reference_in.query, ch_reference_in.reference, false, '', false, false)
 
     // --- A and C. Graph structure and consensus consistency ---
     BANDAGE_IMAGE(ch_consensus_gfa)
@@ -127,9 +130,24 @@ workflow CHECKS {
         GTDBTK_CLASSIFYWF.out.summary.flatMap { meta, fs -> (fs instanceof List ? fs : [fs]).collect { f -> [meta, 'gtdbtk', f] } },
     )
 
+    // What only the report reads, in the same [meta, kind, file] shape; see
+    // bin/collect_metrics.py for how each kind is read.
+    report = channel.empty().mix(
+        MOSDEPTH.out.regions_bed.map { meta, f -> [meta, 'coverage', f] },
+        VARIANT_SCAN.out.variants.map { meta, f -> [meta, 'variant-sites', f] },
+        MERQURY_MERQURY.out.stats.map { meta, f -> [meta, 'merqury-completeness', f] },
+        MERQURY_MERQURY.out.spectra_cn_fl_png.map { meta, f -> [meta, 'image-spectra-cn', f] },
+        BAKTA_BAKTA.out.txt.map { meta, f -> [meta, 'bakta', f] },
+        GENE_CHECKS.out.ratios.map { meta, f -> [meta, 'ideel-ratios', f] },
+        GENE_CHECKS.out.rrna.map { meta, f -> [meta, 'rrna-depth', f] },
+        SKANI_REFERENCE.out.dist.map { meta, f -> [meta, 'reference-skani', f] },
+        MINIMAP2_REFERENCE.out.paf.map { meta, f -> [meta, 'dotplot', f] },
+        BANDAGE_IMAGE.out.png.map { meta, f -> [meta, 'image-bandage', f] },
+        ASSEMBLER_CONTRIBUTION.out.contribution.map { meta, f -> [meta, 'assembler-contribution', f] },
+    )
+
     emit:
     metrics
+    report
     bam = MAP_READS.out.bam
-    reference_skani = SKANI_REFERENCE.out.dist
-    assembler_contribution = ASSEMBLER_CONTRIBUTION.out.contribution
 }

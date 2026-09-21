@@ -1,0 +1,4 @@
+sample	Input_file	Dataset	Complete	Single	Duplicated	Fragmented	Missing	n_markers
+iso_pass	iso_pass.fasta	bacteria_odb12	99.2	98.4	0.8	0.4	0.4	124
+iso_warn	iso_warn.fasta	bacteria_odb12	99.2	98.4	0.8	0.4	0.4	124
+iso_fail	iso_fail.fasta	bacteria_odb12	99.2	90.1	9.1	0.4	0.4	124

@@ -1,9 +1,10 @@
 # isolate-genome-assembler: implementation plan
 
-Status: Phase 4 complete, 2026-09-21. Stages 1–7 up to the QC gates (read QC, contamination
-screen, assembly, consensus, finishing, the stage 6 checks and `qc_gates.py`) are implemented
-and covered by stub and unit tests; the real validation runs of Phases 1–4 are still
-outstanding (see each phase below). Phase 5 (the report) is next. Open decisions are resolved
+Status: Phase 5 complete, 2026-09-21. All eight stages (read QC, contamination screen,
+assembly, consensus, finishing, the stage 6 checks, `qc_gates.py` and the Quarto report) are
+implemented and covered by stub, unit and render tests; the real validation runs of
+Phases 1–5 are still outstanding (see each phase below). Phase 6 (benchmark and defaults)
+is next. Open decisions are resolved
 ([Decisions](#risks-and-open-questions)). Phases are listed at the end ([Phases](#phases)).
 Update this header as each phase lands, the same way `superresolution-amplicon/docs/*_plan.md`
 does.
@@ -716,6 +717,38 @@ results/
 - `collect_metrics.py`, the `.qmd` template, the report image + `build-images.yml`, the
   fixture `run_summary/`, the render test.
 - **Done when:** the report renders from fixtures in CI and from a real run.
+- **Landed 2026-09-21.** Stub tests, `pytest` and the render test pass. Notes and deviations:
+  - **`collect_metrics.py` reads a manifest of `sample, kind, file`,** built by the workflow
+    from the same `[meta, kind, file]` channel `QC_GATES` groups, plus a `report` channel
+    from `CHECKS`. Most kinds are TSVs concatenated as they are; only non-TSV inputs
+    (the qc and contamination JSON, Inspector, Bakta, Merqury, mosdepth, PAF) have a parser.
+    So bundle names follow the kinds: `contigs.tsv` rather than `assemblies.tsv`, plus
+    `contig_depth`, `mapping`, `clipping`, `inspector`, `variant_sites`, `merqury_completeness`,
+    `ideel_ratios`, `rrna_depth`, `bakta`, `coverage`, `dotplot`, `reference_skani`,
+    `assembly_attempts`, `contamination_species` and `images.tsv` (images are copied into
+    `images/`).
+  - **`run_info.json` replaces `params.json`:** pipeline version, commit, Nextflow version,
+    run name, start, profile and every param, in one file.
+  - **Software versions are `software_versions.tsv`**, collated from the `versions` topic
+    into `pipeline_info/` and the bundle. `COLLECT_METRICS` and `QUARTO_REPORT` do not emit
+    to the topic: they wait for it to close, so writing to it would deadlock.
+  - **The minimap2 dotplot is here, as planned:** `MINIMAP2_REFERENCE` (`-x asm5`, PAF) runs
+    for samples with a `reference`, and the report draws the blocks with plotly.
+  - **Coverage tracks use the 1 kb mosdepth windows averaged to 10 kb** in the report, so
+    stage 6 runs mosdepth once.
+  - **Read length and quality histograms are not redrawn.** The report points at the
+    NanoPlot report; `read_qc.tsv` carries the summary numbers.
+  - **plotly.js is inlined once per report** (~4.5 MB), so each HTML file works offline;
+    a report is ~6 MB.
+  - **Per-sample reports render to the default name and are renamed:** Quarto's `--output`
+    looks for the embedded libraries under the new name and fails.
+  - **The report re-renders on every `-resume`,** since `run_info.json` carries the run's
+    start time. It takes seconds, and the report should describe the latest run.
+  - **CI builds the report image** before the stub tests (so `QUARTO_REPORT`'s stub finds it
+    locally and an image change is tested before it is published) and runs the render test
+    inside it. `build-images.yml` pushes it from `main`, amd64 only.
+  - **Still outstanding:** rendering from a real run, together with Phase 1–4's validation
+    runs.
 
 ### Phase 6: benchmark and defaults
 Results go in `dev/assembler_benchmark.{py,csv,md}`.

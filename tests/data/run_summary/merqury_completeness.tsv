@@ -1,0 +1,4 @@
+sample	assembly	set	found	total	completeness
+iso_pass	iso_pass	all	4700000	4800000	97.9
+iso_warn	iso_warn	all	4700000	4800000	97.9
+iso_fail	iso_fail	all	4700000	4800000	97.9

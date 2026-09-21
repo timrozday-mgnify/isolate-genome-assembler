@@ -1,0 +1,4 @@
+sample	user_genome	classification	closest_genome_reference	closest_genome_ani	closest_genome_af	classification_method	warnings
+iso_pass	iso_pass	d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia coli	GCF_000005845.2	98.9	0.93	ani_screen	N/A
+iso_warn	iso_warn	d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia coli	GCF_000005845.2	98.9	0.93	ani_screen	N/A
+iso_fail	iso_fail	d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia coli	GCF_000005845.2	98.9	0.93	ani_screen	N/A

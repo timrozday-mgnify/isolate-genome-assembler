@@ -1,0 +1,416 @@
+---
+title: "Isolate genome assembly report"
+---
+
+```{python}
+#| tags: [parameters]
+summary_dir = "run_summary"
+sample = ""
+```
+
+```{python}
+# Everything is computed upstream: this template only reads run_summary/ and plots it,
+# so it renders the same from the test fixture as from a real run.
+import base64
+import html
+import json
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from IPython.display import HTML, Markdown, display
+from plotly.offline import get_plotlyjs
+
+SUMMARY = Path(summary_dir)
+STATUS_CODE = {"not_measured": -1, "pass": 0, "warn": 1, "fail": 2}
+STATUS_COLOUR = {"not_measured": "#d0d7de", "pass": "#1a7f37", "warn": "#e8912d", "fail": "#c62828"}
+
+
+def table(name: str) -> pd.DataFrame:
+    """A run_summary table, limited to the sample being reported; empty if absent."""
+    path = SUMMARY / f"{name}.tsv"
+    try:
+        df = pd.read_csv(path, sep="\t")
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        return pd.DataFrame(columns=["sample"])
+    return df[df["sample"] == sample] if sample and "sample" in df else df
+
+
+def of(df: pd.DataFrame, sample_id: str) -> pd.DataFrame:
+    return df[df["sample"] == sample_id].drop(columns="sample")
+
+
+def badge(status) -> str:
+    status = "" if pd.isna(status) else str(status)
+    return f'<span class="badge-status status-{html.escape(status)}">{html.escape(status or "n/a")}</span>'
+
+
+def html_table(df: pd.DataFrame, escape: bool = True) -> str:
+    return df.to_html(index=False, border=0, na_rep="", escape=escape, classes="report-table")
+
+
+def vertical(df: pd.DataFrame) -> str:
+    """A one-row table as metric / value pairs."""
+    if df.empty:
+        return ""
+    row = df.iloc[0].dropna()
+    return html_table(pd.DataFrame({"metric": row.index, "value": row.astype(str).values}))
+
+
+def figure(fig: go.Figure) -> str:
+    fig.update_layout(template="plotly_white", margin=dict(l=40, r=20, t=40, b=40))
+    return fig.to_html(full_html=False, include_plotlyjs=False, config={"displaylogo": False})
+
+
+def image(sample_id: str, kind: str) -> str:
+    rows = images[(images["sample"] == sample_id) & (images["kind"] == kind)]
+    if rows.empty:
+        return '<p class="note">No image.</p>'
+    data = base64.b64encode((SUMMARY / rows.iloc[0]["path"]).read_bytes()).decode()
+    return f'<img class="report-image" alt="{kind} for {sample_id}" src="data:image/png;base64,{data}">'
+
+
+def raw(*parts: str) -> None:
+    """Emit HTML from an output: asis cell."""
+    print("```{=html}\n" + "\n".join(p for p in parts if p) + "\n```\n")
+
+
+def empty(message: str) -> str:
+    return f'<p class="note">{html.escape(message)}</p>'
+
+
+run_info = json.loads((SUMMARY / "run_info.json").read_text())
+samples = table("samples")
+qc = table("qc_gates")
+images = table("images")
+SAMPLES = list(samples["sample"])
+
+# plotly.js once, inline, so every figure works offline in the one HTML file.
+display(HTML(f"<script>{get_plotlyjs()}</script>"))
+```
+
+```{python}
+#| output: asis
+if sample:
+    print(f"Sample **{sample}** from run `{run_info.get('run_name', '')}`.\n")
+```
+
+# Run overview
+
+```{python}
+#| output: asis
+overview = {
+    "Pipeline": f"{run_info.get('pipeline', '')} {run_info.get('pipeline_version', '')}",
+    "Commit": run_info.get("commit") or run_info.get("revision") or "local",
+    "Nextflow": run_info.get("nextflow_version", ""),
+    "Run": run_info.get("run_name", ""),
+    "Started": run_info.get("start", ""),
+    "Profile": run_info.get("profile", ""),
+    "Container engine": run_info.get("container_engine", ""),
+    "Samples": len(SAMPLES),
+}
+params = run_info.get("params", {})
+databases = {k: v for k, v in params.items() if k.endswith("_db") or k.endswith("_taxonomy") or k == "human_reference"}
+raw(
+    html_table(pd.DataFrame({"": list(overview), "value": [str(v) for v in overview.values()]})),
+    "<h4>Databases</h4>",
+    html_table(pd.DataFrame({"param": list(databases), "path": [str(v) for v in databases.values()]}))
+    if databases else empty("No database params recorded."),
+    "<details><summary>All parameters</summary>",
+    html_table(pd.DataFrame({"param": list(params), "value": [json.dumps(v) for v in params.values()]})),
+    "</details>",
+)
+```
+
+# Sample status board
+
+```{python}
+#| output: asis
+board = samples.copy()
+if board.empty:
+    raw(empty("No samples."))
+else:
+    board["replicons"] = [
+        f"{int(r.chromosomes)} chr + {int(r.plasmids)} plasmid(s)" + ("" if str(r.all_circular).lower() == "true" else ", not all circular")
+        for r in board.itertuples()
+    ]
+    shown = pd.DataFrame({
+        "sample": [f'<a href="#sample-{html.escape(s)}">{html.escape(s)}</a>' for s in board["sample"]],
+        "status": [badge(s) for s in board["status"]],
+        "depth": board["depth"].round(1),
+        "species": board["species"].fillna("").map(html.escape),
+        "replicons": board["replicons"],
+        "length (bp)": board["total_length"].map("{:,}".format),
+        "QV": board["merqury_qv"],
+        "CheckM2 compl. / contam.": [f"{a} / {b}" for a, b in zip(board["checkm2_completeness"], board["checkm2_contamination"])],
+        "assembly": board["assembly_source"].fillna("").map(html.escape),
+    })
+    raw(html_table(shown, escape=False))
+```
+
+# QC gate matrix
+
+```{python}
+#| output: asis
+if qc.empty:
+    raw(empty("No QC gate results."))
+else:
+    checks = list(dict.fromkeys(qc["check"]))
+    grid = qc.pivot(index="sample", columns="check", values="status").reindex(index=SAMPLES, columns=checks)
+    values = qc.pivot(index="sample", columns="check", values="value").reindex(index=SAMPLES, columns=checks)
+    codes = grid.apply(lambda col: col.map(STATUS_CODE)).fillna(-1)
+    hover = grid.fillna("not_measured") + "<br>value: " + values.astype(str).replace("nan", "n/a")
+    # A stepped colour scale: one flat band per status code, -1 to 2.
+    colorscale = []
+    for i, status in enumerate(STATUS_CODE):
+        colorscale += [[i / 4, STATUS_COLOUR[status]], [(i + 1) / 4, STATUS_COLOUR[status]]]
+    fig = go.Figure(go.Heatmap(
+        z=codes.values, x=checks, y=SAMPLES, text=hover.values,
+        hovertemplate="<b>%{y}</b> · %{x}<br>%{text}<extra></extra>",
+        zmin=-1.5, zmax=2.5, showscale=False, xgap=2, ygap=2,
+        colorscale=colorscale,
+    ))
+    fig.update_layout(height=160 + 30 * len(SAMPLES), xaxis_tickangle=-45, yaxis_autorange="reversed")
+    flagged = qc[qc["status"].isin(["warn", "fail"])]
+    raw(
+        figure(fig),
+        '<p class="note">Grey: not measured; a check that did not run never changes a sample\'s status.</p>',
+        "<h4>Warnings and failures</h4>",
+        html_table(pd.DataFrame({
+            "sample": flagged["sample"],
+            "check": flagged["check"],
+            "status": [badge(s) for s in flagged["status"]],
+            "message": flagged["message"].fillna("").map(html.escape),
+        }), escape=False) if not flagged.empty else empty("Nothing flagged."),
+    )
+```
+
+# Samples
+
+```{python}
+#| output: asis
+read_qc, gc_hist = table("read_qc"), table("gc_hist")
+contamination, species = table("contamination"), table("contamination_species")
+contigs, contig_depth = table("contigs"), table("contig_depth")
+assembly_source, autocycler = table("assembly_source"), table("autocycler")
+attempts, contribution, dotplot = table("assembly_attempts"), table("assembler_contribution"), table("dotplot")
+coverage, regions, clipping = table("coverage"), table("coverage_regions"), table("clipping")
+inspector, variants, variant_sites = table("inspector"), table("variants"), table("variant_sites")
+merqury, merqury_completeness = table("merqury"), table("merqury_completeness")
+bakta, ideel, ideel_ratios, rrna = table("bakta"), table("ideel"), table("ideel_ratios"), table("rrna_depth")
+gtdbtk, reference_skani, checkm2, busco = table("gtdbtk"), table("reference_skani"), table("checkm2"), table("busco")
+plasmid_audit = table("plasmid_audit")
+
+
+def reads_tab(s: str) -> list[str]:
+    stats = of(read_qc, s)
+    parts = ["<h4>Read statistics</h4>", vertical(stats) or empty("No read QC.")]
+    gc = of(gc_hist, s)
+    if not gc.empty:
+        fig = px.bar(gc, x="gc_percent_bin", y="read_count", labels={"gc_percent_bin": "read GC (%)", "read_count": "reads"})
+        fig.update_layout(height=280, title="Per-read GC")
+        parts += [figure(fig), '<p class="note">A wide or bimodal GC distribution is an early contamination signal.</p>']
+    if not stats.empty:
+        row = stats.iloc[0]
+        sizes = {k: row.get(f"genome_size_{k}") for k in ("declared", "autocycler", "genomescope", "used")}
+        parts += ["<h4>Genome size</h4>", html_table(pd.DataFrame({"estimate": list(sizes), "bp": list(sizes.values())}))]
+    parts += ["<h4>K-mer spectrum (GenomeScope2)</h4>", image(s, "genomescope"),
+              '<p class="note">Length and quality distributions are in the NanoPlot report under <code>reads/&lt;id&gt;/</code>.</p>']
+    return parts
+
+
+def contamination_tab(s: str) -> list[str]:
+    summary = of(contamination, s)
+    gate = qc[(qc["sample"] == s) & (qc["check"] == "taxon_disagreement")]
+    agreement = badge(gate.iloc[0]["status"]) if not gate.empty else badge("not_measured")
+    return [
+        f"<p>Taxon agreement (sylph / GTDB-Tk / expected): {agreement}</p>",
+        "<h4>sylph species</h4>",
+        html_table(of(species, s)) if not of(species, s).empty else empty("sylph placed no species (possibly a taxon GTDB does not hold)."),
+        "<h4>Summary</h4>", vertical(summary) or empty("No contamination summary."),
+    ]
+
+
+def assembly_tab(s: str) -> list[str]:
+    source = of(assembly_source, s)
+    parts = []
+    if not source.empty and source.iloc[0]["assembly_source"] != "autocycler":
+        parts.append(f'<p><b>Fallback used:</b> {html.escape(str(source.iloc[0]["reason"]))}. The Flye assembly of all reads was finished instead of the Autocycler consensus.</p>')
+    table_ = of(contigs, s)
+    depth = of(contig_depth, s)
+    if not depth.empty:
+        table_ = table_.merge(depth[["contig", "median_depth", "depth_ratio"]], on="contig", how="left")
+    parts += ["<h4>Contigs</h4>", html_table(table_) if not table_.empty else empty("No contigs.")]
+    parts += ["<h4>Consensus graph (Bandage)</h4>", image(s, "bandage")]
+    parts += ["<h4>Autocycler</h4>", vertical(of(autocycler, s)) or empty("No Autocycler metrics.")]
+    contrib = of(contribution, s)
+    if not contrib.empty:
+        contrib = contrib.assign(fraction=contrib["subsets_in_cluster"] / contrib["subsets_total"])
+        grid = contrib.pivot_table(index="assembler", columns="cluster", values="fraction")
+        fig = px.imshow(grid, color_continuous_scale="Blues", zmin=0, zmax=1, aspect="auto",
+                        labels={"x": "cluster", "y": "assembler", "color": "subsets"})
+        fig.update_layout(height=120 + 30 * len(grid), title="Fraction of subsets contributing to each QC-pass cluster")
+        parts.append(figure(fig))
+    failed = of(attempts, s)
+    failed = failed[failed["status"] != "ok"] if "status" in failed else failed
+    parts += ["<h4>Failed assembly tasks</h4>", html_table(failed) if not failed.empty else empty("None.")]
+    blocks = of(dotplot, s)
+    if not blocks.empty:
+        fig = go.Figure()
+        for r in blocks.itertuples():
+            ts, te = (r.target_start, r.target_end) if r.strand == "+" else (r.target_end, r.target_start)
+            fig.add_trace(go.Scatter(
+                x=[r.query_start, r.query_end], y=[ts, te], mode="lines", showlegend=False,
+                line=dict(color="#0969da" if r.strand == "+" else "#c62828", width=2),
+                hovertemplate=f"{r.query} → {r.target} ({r.strand})<extra></extra>",
+            ))
+        fig.update_layout(height=450, title="Dotplot against the reference (blue: forward, red: reverse)",
+                          xaxis_title="assembly (bp)", yaxis_title="reference (bp)")
+        parts += ["<h4>Dotplot against the reference</h4>", figure(fig)]
+    return parts
+
+
+def accuracy_tab(s: str) -> list[str]:
+    parts = []
+    cov = of(coverage, s)
+    if not cov.empty:
+        # 1 kb mosdepth windows averaged into 10 kb for plotting.
+        cov = cov.assign(bin=cov["start"] // 10_000 * 10_000).groupby(["contig", "bin"], as_index=False)["depth"].mean()
+        flagged = of(regions, s)
+        for contig, track in cov.groupby("contig"):
+            fig = px.line(track, x="bin", y="depth", labels={"bin": "position (bp)", "depth": "mean depth"})
+            for r in flagged[flagged["contig"] == contig].itertuples():
+                fig.add_vrect(x0=r.start, x1=r.end, fillcolor="#e8912d", opacity=0.3, line_width=0)
+            fig.update_layout(height=240, title=f"{contig} (flagged regions shaded)")
+            parts.append(figure(fig))
+    parts += ["<h4>Clipping pile-ups</h4>", html_table(of(clipping, s)) if not of(clipping, s).empty else empty("None.")]
+    parts += ["<h4>Inspector</h4>", vertical(of(inspector, s)) or empty("No Inspector summary.")]
+    sites = of(variant_sites, s)
+    if not sites.empty:
+        counts = sites.assign(homopolymer_indel=sites["homopolymer_indel"].astype(str).str.lower() == "true") \
+            .groupby(["af_bin", "homopolymer_indel"], as_index=False).size()
+        fig = px.bar(counts, x="af_bin", y="size", color="homopolymer_indel", barmode="stack",
+                     labels={"af_bin": "allele frequency bin", "size": "sites", "homopolymer_indel": "homopolymer indel"})
+        fig.update_layout(height=280, title="Variants by allele frequency (high: AF ≥ 0.5; mixed: 0.2–0.5)")
+        parts.append(figure(fig))
+    parts += ["<h4>Variant summary</h4>", vertical(of(variants, s)) or empty("No variant summary.")]
+    parts += ["<h4>Merqury</h4>", vertical(of(merqury, s)) or empty("No Merqury QV."),
+              vertical(of(merqury_completeness, s)), image(s, "spectra-cn"),
+              '<p class="note">The same reads built the assembly, so Merqury measures self-consistency, not independent truth.</p>']
+    return parts
+
+
+def genes_tab(s: str) -> list[str]:
+    parts = ["<h4>Bakta</h4>", vertical(of(bakta, s)) or empty("No Bakta summary.")]
+    ratios = of(ideel_ratios, s)
+    summary = of(ideel, s)
+    if not ratios.empty:
+        fig = px.histogram(ratios, x="ratio", nbins=60, labels={"ratio": "query / subject length"})
+        fig.add_vline(x=0.9, line_dash="dash", line_color="#c62828")
+        fraction = summary.iloc[0]["truncated_fraction"] if not summary.empty else float("nan")
+        fig.update_layout(height=300, title=f"IDEEL: protein length ratios ({fraction:.1%} below 0.9)")
+        parts.append(figure(fig))
+    parts += ["<h4>IDEEL summary</h4>", vertical(summary) or empty("No IDEEL summary.")]
+    parts += ["<h4>rRNA locus depth</h4>", html_table(of(rrna, s)) if not of(rrna, s).empty else empty("No rRNA loci."),
+              '<p class="note">A locus at about n× the chromosome depth means n operons collapsed into one.</p>']
+    return parts
+
+
+def taxonomy_tab(s: str) -> list[str]:
+    parts = ["<h4>GTDB-Tk</h4>", html_table(of(gtdbtk, s)) if not of(gtdbtk, s).empty else empty("No GTDB-Tk result.")]
+    parts += ["<h4>skani against the reference</h4>",
+              html_table(of(reference_skani, s)) if not of(reference_skani, s).empty else empty("No reference given.")]
+    parts += ["<h4>CheckM2</h4>", vertical(of(checkm2, s)) or empty("No CheckM2 result.")]
+    b = of(busco, s)
+    if not b.empty:
+        long = b.melt(id_vars=["Dataset"], value_vars=["Single", "Duplicated", "Fragmented", "Missing"], var_name="class", value_name="percent")
+        fig = px.bar(long, y="Dataset", x="percent", color="class", orientation="h",
+                     color_discrete_map={"Single": "#1a7f37", "Duplicated": "#0969da", "Fragmented": "#e8912d", "Missing": "#c62828"})
+        fig.update_layout(height=200, title="BUSCO", xaxis_range=[0, 100])
+        parts += ["<h4>BUSCO</h4>", figure(fig)]
+    return parts
+
+
+def plasmids_tab(s: str) -> list[str]:
+    audit = of(plasmid_audit, s)
+    return [
+        html_table(audit) if not audit.empty else empty("Plassembler found no plasmids in the full read set."),
+        '<p class="note">HiFi library size selection under-represents plasmids under ~10 kb, so a small plasmid can be missing from both.</p>',
+    ]
+
+
+TABS = {"Reads": reads_tab, "Contamination": contamination_tab, "Assembly": assembly_tab,
+        "Accuracy": accuracy_tab, "Genes": genes_tab, "Taxonomy": taxonomy_tab, "Plasmids": plasmids_tab}
+
+for s in SAMPLES:
+    status = samples.loc[samples["sample"] == s, "status"].iloc[0]
+    print(f"## {s} {{#sample-{s}}}\n")
+    raw(f"<p>Overall status: {badge(status)}</p>")
+    print("::: {.panel-tabset}\n")
+    for name, tab in TABS.items():
+        print(f"### {name}\n")
+        raw(*tab(s))
+    print(":::\n")
+```
+
+# Methods
+
+```{python}
+#| output: asis
+versions = table("software_versions")
+CITATIONS = {
+    "autocycler": ("Consensus assembly with Autocycler", "Wick RR, et al. Autocycler: long-read consensus assembly for bacterial genomes. 2025."),
+    "flye": ("Flye", "Kolmogorov M, et al. Nat Biotechnol 2019. doi:10.1038/s41587-019-0072-8"),
+    "hifiasm": ("hifiasm", "Cheng H, et al. Nat Methods 2021. doi:10.1038/s41592-020-01056-5"),
+    "raven": ("Raven", "Vaser R, Šikić M. Nat Comput Sci 2021. doi:10.1038/s43588-021-00073-4"),
+    "canu": ("Canu", "Koren S, et al. Genome Res 2017. doi:10.1101/gr.215087.116"),
+    "miniasm": ("miniasm", "Li H. Bioinformatics 2016. doi:10.1093/bioinformatics/btw152"),
+    "minipolish": ("Minipolish", "Wick RR, Holt KE. F1000Research 2019. doi:10.12688/f1000research.21782.4"),
+    "metamdbg": ("metaMDBG", "Benoit G, et al. Nat Biotechnol 2024. doi:10.1038/s41587-023-01983-6"),
+    "plassembler": ("Plassembler", "Bouras G, et al. Bioinformatics 2024. doi:10.1093/bioinformatics/btae030"),
+    "dnaapler": ("dnaapler", "Bouras G, et al. J Open Source Softw 2024. doi:10.21105/joss.05968"),
+    "seqkit": ("SeqKit", "Shen W, et al. PLoS One 2016. doi:10.1371/journal.pone.0163962"),
+    "nanoplot": ("NanoPlot", "De Coster W, Rademakers R. Bioinformatics 2023. doi:10.1093/bioinformatics/btad311"),
+    "kmc": ("KMC", "Kokot M, et al. Bioinformatics 2017. doi:10.1093/bioinformatics/btx304"),
+    "genomescope2": ("GenomeScope 2.0", "Ranallo-Benavidez TR, et al. Nat Commun 2020. doi:10.1038/s41467-020-14998-3"),
+    "hifiadapterfilt": ("HiFiAdapterFilt", "Sim SB, et al. BMC Genomics 2022. doi:10.1186/s12864-022-08375-1"),
+    "sylph": ("sylph", "Shaw J, Yu YW. Nat Biotechnol 2024. doi:10.1038/s41587-024-02412-y"),
+    "minimap2": ("minimap2", "Li H. Bioinformatics 2018. doi:10.1093/bioinformatics/bty191"),
+    "samtools": ("SAMtools", "Danecek P, et al. GigaScience 2021. doi:10.1093/gigascience/giab008"),
+    "bcftools": ("BCFtools", "Danecek P, et al. GigaScience 2021. doi:10.1093/gigascience/giab008"),
+    "mosdepth": ("mosdepth", "Pedersen BS, Quinlan AR. Bioinformatics 2018. doi:10.1093/bioinformatics/btx699"),
+    "inspector": ("Inspector", "Chen Y, et al. Genome Biol 2021. doi:10.1186/s13059-021-02527-4"),
+    "merqury": ("Merqury", "Rhie A, et al. Genome Biol 2020. doi:10.1186/s13059-020-02134-9"),
+    "bakta": ("Bakta", "Schwengers O, et al. Microb Genom 2021. doi:10.1099/mgen.0.000685"),
+    "diamond": ("DIAMOND", "Buchfink B, et al. Nat Methods 2021. doi:10.1038/s41592-021-01101-x"),
+    "checkm2": ("CheckM2", "Chklovski A, et al. Nat Methods 2023. doi:10.1038/s41592-023-01940-w"),
+    "busco": ("BUSCO", "Manni M, et al. Mol Biol Evol 2021. doi:10.1093/molbev/msab199"),
+    "gtdbtk": ("GTDB-Tk", "Chaumeil PA, et al. Bioinformatics 2022. doi:10.1093/bioinformatics/btac672"),
+    "skani": ("skani", "Shaw J, Yu YW. Nat Methods 2023. doi:10.1038/s41592-023-02018-3"),
+    "bandage": ("Bandage", "Wick RR, et al. Bioinformatics 2015. doi:10.1093/bioinformatics/btv383"),
+}
+used = versions.drop_duplicates("tool").set_index("tool")["version"].astype(str) if not versions.empty else pd.Series(dtype=str)
+named = [f"{CITATIONS[t][0]} v{v}" for t, v in used.items() if t in CITATIONS]
+print(
+    f"Genomes were assembled from PacBio HiFi reads with {run_info.get('pipeline', 'the pipeline')} "
+    f"v{run_info.get('pipeline_version', '')} (Nextflow v{run_info.get('nextflow_version', '')}; "
+    "Di Tommaso P, et al. Nat Biotechnol 2017. doi:10.1038/nbt.3820). "
+    f"Reads were subsampled into {params.get('subsample_count', 'several')} subsets and assembled with "
+    f"{str(params.get('assemblers', 'several assemblers')).replace(',', ', ')}; the assemblies were combined into a consensus with Autocycler, "
+    "and genomes were rotated to a start gene, checked for read support, per-base accuracy, gene integrity "
+    "(IDEEL; Stewart RD, et al. Nat Commun 2018. doi:10.1038/s41467-018-03317-6), completeness and taxonomy.\n"
+)
+if named:
+    print("Software used: " + "; ".join(named) + ".\n")
+    print("**References**\n")
+    for citation in sorted({CITATIONS[t][1] for t in used.index if t in CITATIONS}):
+        print(f"- {citation}")
+```
+
+# Software versions
+
+```{python}
+#| output: asis
+raw(html_table(versions) if not versions.empty else empty("No software versions recorded."))
+```
