@@ -6,27 +6,28 @@ process AUTOCYCLER_GENOME_SIZE {
     label 'process_medium'
 
     container "${workflow.containerEngine in ['singularity', 'apptainer']
-        ? 'https://depot.galaxyproject.org/singularity/autocycler:0.7.0--h79ce301_0'
-        : 'quay.io/biocontainers/autocycler:0.7.0--h79ce301_0'}"
+        ? 'https://depot.galaxyproject.org/singularity/raven-assembler:1.8.3--h5ca1c30_3'
+        : 'quay.io/biocontainers/raven-assembler:1.8.3--h5ca1c30_3'}"
 
     input:
     tuple val(meta), path(reads)
 
     output:
     tuple val(meta), path("${meta.id}.genome_size_autocycler.txt"), emit: genome_size
-    tuple val("${task.process}"), val('autocycler'), eval("autocycler --version | sed 's/^.*r //; s/^autocycler //'"), topic: versions
+    tuple val("${task.process}"), val('raven'), eval("raven --version"), topic: versions
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
+    // ponytail: same as `autocycler helper genome_size` (helper.rs genome_size_raven), which needs raven on PATH
+    // and the autocycler biocontainer does not have it.
     """
-    autocycler helper genome_size \\
-        --reads ${reads} \\
-        --threads ${task.cpus} \\
-        ${args} \\
+    raven --threads ${task.cpus} --disable-checkpoints --polishing-rounds 1 ${args} ${reads} > assembly.fasta
+    awk '!/^>/ { total += length(\$0) } END { if (total == 0) exit 1; print total }' assembly.fasta \\
         > ${meta.id}.genome_size_autocycler.txt
+    rm assembly.fasta
     """
 
     stub:
