@@ -1,5 +1,6 @@
 include { DOWNLOAD_DATABASE     } from '../../modules/local/download_database'
 include { SYLPH_SKETCH_GENOMES  } from '../../modules/local/sylph_sketch_genomes'
+include { PLASSEMBLER_DOWNLOAD  } from '../../modules/local/plassembler_download'
 
 // `--prepare_databases`. Run once per site into a shared location; the pipeline
 // proper only reads the resulting paths through the database params.
@@ -21,7 +22,10 @@ workflow PREPARE_DATABASES {
         .map { genomes -> ['sylph_human_db', genomes] }
 
     SYLPH_SKETCH_GENOMES(ch_human_genomes)
+    PLASSEMBLER_DOWNLOAD()
 
     emit:
-    databases = DOWNLOAD_DATABASE.out.database.mix(SYLPH_SKETCH_GENOMES.out.database)
+    databases = DOWNLOAD_DATABASE.out.database
+        .mix(SYLPH_SKETCH_GENOMES.out.database)
+        .mix(PLASSEMBLER_DOWNLOAD.out.database)
 }

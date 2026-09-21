@@ -21,7 +21,7 @@ nextflow_pipeline {
         }
     }
 
-    test("one sample runs read QC and the contamination screen") {
+    test("one sample runs read QC, the contamination screen and the assembly") {
         options "-stub"
 
         when {
@@ -35,12 +35,113 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert workflow.trace.tasks().size() == 16 },
+                // 16 read QC and contamination tasks, then 4 subsets x 7 assemblers
+                // (miniasm taking three processes), their normalisation, the Flye
+                // fallback and its normalisation, the consensus, and six finishing tasks.
+                { assert workflow.trace.tasks().size() == 92 },
                 { assert path("$outputDir/results/reads/isolate01/isolate01.read_qc.tsv").exists() },
-                { assert path("$outputDir/results/reads/isolate01/isolate01.adapters.tsv").exists() },
-                { assert path("$outputDir/results/reads/isolate01/isolate01.gc_hist.tsv").exists() },
                 { assert path("$outputDir/results/contamination/isolate01/isolate01.contamination_summary.json").exists() },
-                { assert path("$outputDir/results/contamination/isolate01/isolate01.human_fraction.tsv").exists() }
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() },
+                { assert path("$outputDir/results/assemblies/isolate01/isolate01.assembly_attempts.tsv").exists() },
+                { assert path("$outputDir/results/assemblies/isolate01/autocycler_out").exists() },
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly_source.tsv").text.contains('autocycler') },
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.fasta").exists() },
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.contigs.tsv").text.contains('isolate01_chromosome') },
+                { assert path("$outputDir/results/checks/isolate01/isolate01.plasmid_audit.tsv").exists() }
+            )
+        }
+    }
+
+    test("--assemblers runs only the assemblers asked for") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/valid_samplesheet.yml"
+                outdir = "$outputDir/results"
+                publish_outputs = true
+                assemblers = 'flye,raven'
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().size() == 44 },
+                { assert workflow.trace.tasks().every { !it.name.contains('CANU') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('HIFIASM') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('MINIASM') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('METAMDBG') } },
+                // PLASSEMBLER_FULL is the plasmid audit, which runs whatever --assemblers says.
+                { assert workflow.trace.tasks().every { !it.name.startsWith('ISOLATE_GENOME_ASSEMBLER:ASSEMBLY:PLASSEMBLER (') } }
+            )
+        }
+    }
+
+    test("autocycler_dir skips subsampling and the input assemblies") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/curated_samplesheet.yml"
+                outdir = "$outputDir/results"
+                publish_outputs = true
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                // Read QC and contamination, then only the Flye fallback, its
+                // normalisation, the reclustering, the selection and finishing.
+                { assert workflow.trace.tasks().size() == 26 },
+                { assert workflow.trace.tasks().every { !it.name.contains('SUBSAMPLE') } },
+                { assert workflow.trace.tasks().every { !it.name.startsWith('ISOLATE_GENOME_ASSEMBLER:ASSEMBLY:FLYE (') } },
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() }
+            )
+        }
+    }
+
+    test("an unresolved consensus falls back to the full-read Flye assembly") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/valid_samplesheet.yml"
+                outdir = "$outputDir/results"
+                publish_outputs = true
+                assemblers = 'flye,raven'
+                stub_fully_resolved = false
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly_source.tsv").text.contains('fallback_flye') }
+            )
+        }
+    }
+
+    test("a failed input assembly is recorded and does not sink the sample") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/valid_samplesheet.yml"
+                outdir = "$outputDir/results"
+                publish_outputs = true
+                assemblers = 'flye,raven'
+                stub_fail_assemblies = 'flye_01'
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() },
+                { assert path("$outputDir/results/assemblies/isolate01/isolate01.assembly_attempts.tsv").text.contains('flye\t01\tfailed') },
+                { assert path("$outputDir/results/assemblies/isolate01/isolate01.assembly_attempts.tsv").text.contains('raven\t01\tok') }
             )
         }
     }
@@ -78,8 +179,9 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert workflow.trace.tasks().size() == 5 },
-                { assert path("$outputDir/databases/sylph_human_db.syldb").exists() }
+                { assert workflow.trace.tasks().size() == 6 },
+                { assert path("$outputDir/databases/sylph_human_db.syldb").exists() },
+                { assert path("$outputDir/databases/plassembler_db").exists() }
             )
         }
     }

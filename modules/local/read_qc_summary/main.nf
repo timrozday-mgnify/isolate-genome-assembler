@@ -35,7 +35,12 @@ process READ_QC_SUMMARY {
     """
 
     stub:
+    def declared_genome_size = meta.genome_size ? "--declared-genome-size ${meta.genome_size}" : ''
     """
-    read_qc_summary.py --sample ${meta.id} --output ${meta.id}.read_qc.tsv
+    read_qc_summary.py \\
+        --sample ${meta.id} \\
+        --genome-size-autocycler ${genome_size_autocycler} \\
+        ${declared_genome_size} \\
+        --output ${meta.id}.read_qc.tsv
     """
 }
