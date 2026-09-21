@@ -1,0 +1,8 @@
+arm	assemblers	subsets
+all7	flye,hifiasm,raven,canu,miniasm,metamdbg,plassembler	4
+no_metamdbg	flye,hifiasm,raven,canu,miniasm,plassembler	4
+no_canu	flye,hifiasm,raven,miniasm,metamdbg,plassembler	4
+fast	flye,hifiasm,raven,miniasm	4
+plus_myloasm	flye,hifiasm,raven,canu,miniasm,metamdbg,plassembler,myloasm	4
+plus_lja	flye,hifiasm,raven,canu,miniasm,metamdbg,plassembler,lja	4
+all7_6subsets	flye,hifiasm,raven,canu,miniasm,metamdbg,plassembler	6
