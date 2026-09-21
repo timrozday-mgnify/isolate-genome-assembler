@@ -43,4 +43,5 @@ workflow READ_QC {
     summary = READ_QC_SUMMARY.out.summary
     nanoplot = NANOPLOT.out.txt
     genomescope = GENOMESCOPE2.out.results
+    gc_hist = READ_PROFILE.out.gc_hist
 }

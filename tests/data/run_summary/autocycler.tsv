@@ -1,0 +1,4 @@
+sample	name	input_read_count	pass_cluster_count	fail_cluster_count	overall_clustering_score	consensus_assembly_bases	consensus_assembly_unitigs	consensus_assembly_fully_resolved
+iso_pass	iso_pass	1600	3	1	0.97	264000	3	true
+iso_warn	iso_warn	1600	2	1	0.97	264000	2	true
+iso_fail	iso_fail	1600	1	1	0.61	264000	7	false

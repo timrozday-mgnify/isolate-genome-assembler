@@ -1,0 +1,28 @@
+sample	check	value	warn	fail	status	message
+iso_pass	read_depth	120.0	50	25	pass	
+iso_pass	dominant_species_abundance	0.996		0.9	pass	
+iso_pass	secondary_species_abundance	0.0	0.01	0.05	pass	
+iso_pass	human_read_fraction	0.0	0.001		pass	
+iso_pass	consensus_unresolved	0.0	1		pass	
+iso_pass	plasmids_missing	0.0	1		pass	
+iso_pass	merqury_qv	62.1	50	40	pass	
+iso_pass	checkm2_completeness	99.9	98	90	pass	
+iso_pass	checkm2_contamination	0.2	1	5	pass	
+iso_warn	read_depth	45.0	50	25	warn	read_depth 45 < 50
+iso_warn	dominant_species_abundance	0.991		0.9	pass	
+iso_warn	secondary_species_abundance	0.0	0.01	0.05	pass	
+iso_warn	human_read_fraction	0.004	0.001		warn	human_read_fraction 0.004 >= 0.001
+iso_warn	consensus_unresolved	0.0	1		pass	
+iso_warn	plasmids_missing	1.0	1		warn	plasmids_missing 1 >= 1
+iso_warn	merqury_qv	55.3	50	40	pass	
+iso_warn	checkm2_completeness	99.5	98	90	pass	
+iso_warn	checkm2_contamination	0.6	1	5	pass	
+iso_fail	read_depth	80.0	50	25	pass	
+iso_fail	dominant_species_abundance	0.7020000000000001		0.9	fail	dominant_species_abundance 0.702 < 0.9
+iso_fail	secondary_species_abundance	0.289	0.01	0.05	fail	secondary_species_abundance 0.289 >= 0.05
+iso_fail	human_read_fraction	0.0	0.001		pass	
+iso_fail	consensus_unresolved	1.0	1		warn	consensus_unresolved 1 >= 1
+iso_fail	plasmids_missing	0.0	1		pass	
+iso_fail	merqury_qv	38.0	50	40	fail	merqury_qv 38 < 40
+iso_fail	checkm2_completeness	97.0	98	90	warn	checkm2_completeness 97 < 98
+iso_fail	checkm2_contamination	22.5	1	5	fail	checkm2_contamination 22.5 >= 5

@@ -1,0 +1,2 @@
+sample	Ref_file	Query_file	ANI	Align_fraction_ref	Align_fraction_query
+iso_pass	reference.fasta	iso_pass.fasta	99.97	98.1	99.2

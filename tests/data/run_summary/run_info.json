@@ -1,0 +1,17 @@
+{
+  "pipeline": "timrozday/isolate-genome-assembler",
+  "pipeline_version": "0.0.0-dev",
+  "commit": "",
+  "revision": "",
+  "nextflow_version": "25.10.0",
+  "run_name": "fixture_run",
+  "start": "2026-09-21T12:00:00Z",
+  "profile": "test",
+  "container_engine": "docker",
+  "params": {
+    "assemblers": "flye,hifiasm,raven,canu",
+    "subsample_count": 4,
+    "gtdbtk_db": "/dbs/gtdbtk_r226",
+    "checkm2_db": "/dbs/checkm2.dmnd"
+  }
+}

@@ -1,0 +1,4 @@
+sample	kind	path
+iso_pass	bandage	images/iso_pass.bandage.png
+iso_warn	bandage	images/iso_warn.bandage.png
+iso_fail	bandage	images/iso_fail.bandage.png

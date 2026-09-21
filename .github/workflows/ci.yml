@@ -23,6 +23,17 @@ jobs:
         run: python -m pip install pre-commit pytest pysam
       - name: Validate formatting and Nextflow preview
         run: pre-commit run --all-files
+      # The report image is built here rather than pulled, so a change to it is tested
+      # before it is published, and QUARTO_REPORT's stub finds it locally.
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the report image
+        uses: docker/build-push-action@v6
+        with:
+          context: containers/report
+          load: true
+          tags: ghcr.io/timrozday-mgnify/isolate-genome-assembler-report:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       # Stub tasks run inside the pinned containers. Several modules report their version
       # with an `eval` output, which needs the tool present even in a stub run, and running
       # them in the real images also proves every pinned tag still resolves.
@@ -30,3 +41,9 @@ jobs:
         run: nf-test test --tag stub --ci --profile docker
       - name: Run Python tests
         run: pytest
+      # tests/test_report.py skips outside the report image, so it runs again inside it.
+      - name: Render the report from the fixture
+        run: >-
+          docker run --rm -v "$PWD:$PWD" -w "$PWD"
+          ghcr.io/timrozday-mgnify/isolate-genome-assembler-report:latest
+          sh -c 'pip install -q pytest && python -m pytest -p no:cacheprovider tests/test_report.py'

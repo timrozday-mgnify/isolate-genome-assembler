@@ -1,0 +1,7 @@
+sample	contig	original_contig	replicon_type	length	depth	circular	flags	in_final_assembly
+iso_pass	iso_pass_chromosome	contig_1	chromosome	200000	120.0	true		true
+iso_pass	iso_pass_plasmid_1	contig_2	plasmid	60000	132.0	true		true
+iso_pass	iso_pass_plasmid_2	contig_3	plasmid	4000	1440.0	true		true
+iso_warn	iso_warn_chromosome	contig_1	chromosome	200000	45.0	true		true
+iso_warn	iso_warn_plasmid_1	contig_2	plasmid	90000	36.0	true		true
+iso_fail	iso_fail_chromosome	contig_1	chromosome	200000	80.0	true		true

@@ -1,0 +1,4 @@
+sample	reads	unmapped_reads	unmapped_read_fraction	bases	unmapped_bases	unmapped_base_fraction
+iso_pass	1600	8	0.005	24000000	40000	0.0017
+iso_warn	1600	8	0.005	9000000	40000	0.0017
+iso_fail	1600	8	0.005	16000000	40000	0.0017

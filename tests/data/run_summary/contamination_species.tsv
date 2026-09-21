@@ -1,0 +1,5 @@
+sample	clade	species	relative_abundance	sequence_abundance
+iso_pass	d__Bacteria|p__Pseudomonadota|c__Gammaproteobacteria|o__Enterobacterales|f__Enterobacteriaceae|g__Escherichia|s__Escherichia coli	s__Escherichia coli	99.6	99.6
+iso_warn	d__Bacteria|p__Pseudomonadota|c__Gammaproteobacteria|o__Enterobacterales|f__Enterobacteriaceae|g__Escherichia|s__Escherichia coli	s__Escherichia coli	99.1	99.1
+iso_fail	d__Bacteria|p__Pseudomonadota|c__Gammaproteobacteria|o__Enterobacterales|f__Enterobacteriaceae|g__Escherichia|s__Escherichia coli	s__Escherichia coli	70.2	70.2
+iso_fail	d__Bacteria|p__Pseudomonadota|c__Gammaproteobacteria|o__Enterobacterales|f__Enterobacteriaceae|g__Klebsiella|s__Klebsiella pneumoniae	s__Klebsiella pneumoniae	28.9	28.9

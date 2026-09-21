@@ -1,0 +1,4 @@
+sample	high_af	high_af_homopolymer_indels	mixed_af	mixed_af_homopolymer_indels
+iso_pass	0	0	3	1
+iso_warn	0	0	3	1
+iso_fail	12	4	3	1

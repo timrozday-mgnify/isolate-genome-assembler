@@ -5,6 +5,8 @@ include { FINISHING     } from '../subworkflows/local/finishing'
 include { CHECKS        } from '../subworkflows/local/checks'
 include { REMOVE_HUMAN  } from '../modules/local/remove_human'
 include { QC_GATES      } from '../modules/local/qc_gates'
+include { COLLECT_METRICS } from '../modules/local/collect_metrics'
+include { QUARTO_REPORT } from '../modules/local/quarto_report'
 
 // The thresholds YAML as JSON, read once here so that a malformed file stops the run at
 // start-up rather than in the last task of every sample.
@@ -14,6 +16,27 @@ def qcThresholdsJson(path) {
         error "Invalid --qc_thresholds '${path}': expected a mapping of check name to {direction, warn, fail}"
     }
     groovy.json.JsonOutput.toJson(thresholds)
+}
+
+// Params as JSON values: paths and GStrings become plain strings.
+def jsonValue(value) {
+    (value == null || value instanceof Number || value instanceof Boolean) ? value : value.toString()
+}
+
+// What the report's run overview shows: the pipeline, this run, and every param.
+def runInfoJson() {
+    groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([
+        pipeline: workflow.manifest.name,
+        pipeline_version: workflow.manifest.version,
+        commit: workflow.commitId ?: '',
+        revision: workflow.revision ?: '',
+        nextflow_version: nextflow.version.toString(),
+        run_name: workflow.runName,
+        start: workflow.start.toString(),
+        profile: workflow.profile,
+        container_engine: workflow.containerEngine ?: '',
+        params: params.collectEntries { key, value -> [key, jsonValue(value)] }.sort(),
+    ]))
 }
 
 workflow ISOLATE_GENOME_ASSEMBLER {
@@ -45,7 +68,7 @@ workflow ISOLATE_GENOME_ASSEMBLER {
 
     // Every measurement for a sample, gathered into parallel lists of qc_gates.py option
     // names and files. groupTuple waits for all of a sample's checks, which is the point.
-    ch_metrics = channel.empty()
+    ch_measurements = channel.empty()
         .mix(
             READ_QC.out.summary.map { meta, f -> [meta, 'read-qc', f] },
             CONTAMINATION.out.summary.map { meta, f -> [meta, 'contamination', f] },
@@ -54,9 +77,40 @@ workflow ISOLATE_GENOME_ASSEMBLER {
             FINISHING.out.plasmid_audit.map { meta, f -> [meta, 'plasmid-audit', f] },
             CHECKS.out.metrics,
         )
-        .groupTuple()
 
-    QC_GATES(ch_metrics, params.input ? qcThresholdsJson(params.qc_thresholds) : '{}')
+    QC_GATES(ch_measurements.groupTuple(), params.input ? qcThresholdsJson(params.qc_thresholds) : '{}')
+
+    // --- Stage 8: report ---
+    // Every file the report reads, as [sample id, kind, file]; kinds are explained in
+    // bin/collect_metrics.py. Collected across samples, so the report waits for them all.
+    ch_report_files = ch_measurements
+        .mix(
+            QC_GATES.out.qc.map { meta, f -> [meta, 'qc', f] },
+            READ_QC.out.gc_hist.map { meta, f -> [meta, 'gc-hist', f] },
+            READ_QC.out.genomescope.flatMap { meta, fs ->
+                (fs instanceof List ? fs : [fs]).findAll { it.name.endsWith('linear_plot.png') }.collect { f -> [meta, 'image-genomescope', f] }
+            },
+            ASSEMBLY.out.attempts.map { meta, f -> [meta, 'assembly-attempts', f] },
+            ASSEMBLY.out.autocycler_table.map { meta, f -> [meta, 'autocycler', f] },
+            CHECKS.out.report,
+        )
+        .map { meta, kind, f -> [[meta.id, kind], f] }
+        .toList()
+        .filter { it }
+        .multiMap { entries ->
+            entries: entries.collect { it[0] }
+            files: entries.collect { it[1] }
+        }
+
+    // Collated once every other process has run, and kept with the provenance reports.
+    ch_versions = channel.topic('versions')
+        .map { process, tool, version -> "${process.tokenize(':').last()}\t${tool}\t${version}" }
+        .unique()
+        .collectFile(name: 'software_versions.tsv', sort: true, newLine: true, storeDir: "${params.outdir}/pipeline_info")
+    ch_run_info = channel.of(runInfoJson()).collectFile(name: 'run_info.json')
+
+    COLLECT_METRICS(ch_report_files.entries, ch_report_files.files, ch_versions, ch_run_info)
+    QUARTO_REPORT(COLLECT_METRICS.out.summary, files("${projectDir}/assets/report/*"), params.per_sample_reports)
 
     emit:
     reads = REMOVE_HUMAN.out.reads
@@ -67,4 +121,5 @@ workflow ISOLATE_GENOME_ASSEMBLER {
     read_qc = READ_QC.out.summary
     contamination = CONTAMINATION.out.summary
     qc = QC_GATES.out.qc
+    report = QUARTO_REPORT.out.html
 }

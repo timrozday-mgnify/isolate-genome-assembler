@@ -1,0 +1,4 @@
+sample	Structural error	Small-scale assembly error /per Mbp	QV
+iso_pass	0	1.5	58.2
+iso_warn	0	1.5	58.2
+iso_fail	0	1.5	58.2

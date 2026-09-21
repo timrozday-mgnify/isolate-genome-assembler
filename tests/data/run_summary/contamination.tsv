@@ -1,0 +1,4 @@
+sample	dominant_species	dominant_abundance	secondary_species	secondary_abundance	unknown_fraction	sylph_profile_rows	human_query_hits	human_query_max_ani	human_fraction	expected_taxon	expected_taxon_matches	remove_human_mode	remove_human_applied
+iso_pass	s__Escherichia coli	0.996		0.0	0.004	1	0	0.0	0.0	g__Escherichia	true	auto	false
+iso_warn	s__Escherichia coli	0.991		0.0	0.009	1	1	99.8	0.004	g__Escherichia	true	auto	true
+iso_fail	s__Escherichia coli	0.7020000000000001	s__Klebsiella pneumoniae	0.289	0.009	2	0	0.0	0.0	g__Escherichia	true	auto	false

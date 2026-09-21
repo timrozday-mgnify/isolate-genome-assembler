@@ -1,0 +1,4 @@
+sample	proteins	proteins_with_hit	truncated	truncated_fraction
+iso_pass	320	300	31	0.1033
+iso_warn	320	300	28	0.0933
+iso_fail	320	300	94	0.3133

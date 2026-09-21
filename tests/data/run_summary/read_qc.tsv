@@ -1,0 +1,4 @@
+sample	reads_in	reads_kept	reads_below_min_qv	bases	read_n50	read_length_mean	read_length_min	read_length_max	q20_fraction	q30_fraction	gc_mean	gc_sd	duplicate_id_fraction	duplicate_sequence_fraction	adapter_fraction	genome_size_declared	genome_size_autocycler	genome_size_genomescope	genome_size_used	genome_size_source	genome_size_disagreement	heterozygosity	depth
+iso_pass	1600	1597	3	24000000	15800	15000	1200	41000	0.99	0.91	50.6	2.1	0	0	0.0004		203000	198000	203000	autocycler	0.025	0.0001	120.0
+iso_warn	600	597	3	9000000	15800	15000	1200	41000	0.99	0.91	50.6	2.1	0	0	0.0004		203000	198000	203000	autocycler	0.025	0.0001	45.0
+iso_fail	1066	1063	3	16000000	15800	15000	1200	41000	0.99	0.91	50.6	2.1	0	0	0.0004		203000	198000	203000	autocycler	0.025	0.0001	80.0
