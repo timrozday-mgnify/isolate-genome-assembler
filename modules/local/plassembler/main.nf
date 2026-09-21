@@ -25,7 +25,13 @@ process PLASSEMBLER {
 
     script:
     def args = task.ext.args ?: ''
+    // Plassembler exits if `canu --version` fails, even though canu is never run here. Under
+    // Singularity on some hosts the image's relocatable Perl resolves @INC to ../lib/perl5
+    // relative to the working directory and cannot load even strict.pm, so the paths are
+    // given explicitly.
     """
+    export PERL5LIB=/usr/local/lib/perl5/5.32/site_perl:/usr/local/lib/perl5/site_perl:/usr/local/lib/perl5/5.32/vendor_perl:/usr/local/lib/perl5/vendor_perl:/usr/local/lib/perl5/5.32/core_perl:/usr/local/lib/perl5/core_perl
+
     plassembler long \\
         -d ${plassembler_db} \\
         -l ${reads} \\
