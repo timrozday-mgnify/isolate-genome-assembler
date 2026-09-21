@@ -16,6 +16,8 @@ process PLASSEMBLER {
 
     output:
     tuple val(meta), val('plassembler'), val(subset), path('out/*'), emit: assembly
+    tuple val(meta), path('out/plassembler_plasmids.fasta'), emit: plasmids
+    tuple val(meta), path('out/plassembler_summary.tsv'), emit: summary, optional: true
     tuple val("${task.process}"), val('plassembler'), eval("plassembler --version | sed 's/^.*version //'"), topic: versions
 
     when:
@@ -44,5 +46,6 @@ process PLASSEMBLER {
     """
     mkdir -p out
     printf '>1 len=4 circular=true\\nACGT\\n' > out/plassembler_plasmids.fasta
+    printf 'contig\\tlength\\tcopy_number_long\\tPLSDB_hit\\n1\\t4\\t1.0\\tNone\\n' > out/plassembler_summary.tsv
     """
 }

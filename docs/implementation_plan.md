@@ -644,6 +644,24 @@ results/
 - Stage 5, Plassembler full-read audit, replicon classification.
 - **Done when:** the mini test's small plasmid is recovered and rotated, or the audit flags
   it as missing.
+- **Landed 2026-09-21.** Stub tests and `pytest` pass. Notes and deviations:
+  - **`--run_genomad` is not implemented.** It is optional and off in the text above, so
+    building it now would mean a module and a database nothing uses. The classifier's
+    `replicon_type` column is where its call would land when Phase 6 says it earns its
+    place.
+  - **Plassembler evidence reaches the audit, not the classifier.** Classification uses
+    length, circularity, depth and the dnaapler gene hit, because the skani comparison
+    needs the finished contigs that classification itself produces. The recovered/missing
+    verdict lives in `plasmid_audit.tsv`, which is where the report reads it from anyway.
+  - **The end-overlap check runs before rotation.** Rotating a contig moves a duplicated
+    end into the middle of the sequence, where the check can no longer see it.
+  - **No `final/<id>.gfa`.** The consensus graph stops matching the sequences once contigs
+    are rotated and renamed; the untouched graph is already published under
+    `autocycler_out/`.
+  - **Depth for the low-depth flag comes from the contig headers**, which
+    `autocycler combine --reads` fills in, not from mosdepth: that is stage 6's tool and
+    belongs to [Phase 4](#phase-4-checks--gates).
+  - **Still outstanding:** the real mini test, which needs the Phase 6 read set.
 
 ### Phase 4: checks + gates
 - Stage 6 A–G, `qc_gates.py`, `assets/qc_thresholds.yml`.

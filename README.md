@@ -5,8 +5,8 @@ reads: read QC, sylph contamination screen (GTDB + human), Autocycler consensus 
 hifiasm, Raven, Canu, miniasm, metaMDBG and Plassembler, finishing, assembly checks with
 pass/warn/fail gates, and a Quarto report. Built for SLURM + Singularity/Apptainer.
 
-**Status: Phase 2 complete — read QC, contamination screen, assembly and consensus.**
-Finishing, checks, gates and the report are not implemented yet. See
+**Status: Phase 3 complete — read QC, contamination screen, assembly, consensus and
+finishing.** Checks, gates and the report are not implemented yet. See
 [the implementation plan](docs/implementation_plan.md).
 
 ## Quick start
@@ -55,6 +55,9 @@ Every parameter is declared with an explanatory comment in
 | `--subsample_min_depth` | `25` | Minimum depth a subset may have |
 | `--publish_outputs` | `false` | Publication is opt-in; nothing is copied by default |
 | `--publish_input_assemblies` | `false` | Also publish the per-subset input assemblies |
+| `--min_contig_len` | `1000` | Contigs shorter than this are flagged |
+| `--chromosome_min_len` | `1000000` | A contig this long is called a chromosome |
+| `--drop_flagged_contigs` | `false` | Move flagged contigs out of the final FASTA |
 
 ## Outputs
 
@@ -83,6 +86,23 @@ the full read set (`assembly_source=fallback_flye`), which runs for every sample
 Re-clustering by hand needs no reassembly: point a sample's `autocycler_dir` key at a
 previous run's `autocycler_out/` and pass `autocycler_cluster_args` (for example
 `--manual 12,34`), and only clustering onwards is repeated.
+
+## Finishing
+
+The selected assembly is checked for leftover circular end-overlap, rotated with
+`dnaapler all` (chromosome at *dnaA*, plasmids at *repA*, phages at *terL*), then
+classified and renamed to `<id>_chromosome` and `<id>_plasmid_1..n`.
+
+Nothing is dropped silently. Linear contigs, contigs under `--min_contig_len`, contigs
+below `--min_contig_depth_ratio` of chromosome depth, contigs that could not be rotated and
+contigs whose ends still overlap are all **flagged** in `<id>.contigs.tsv` and kept.
+`--drop_flagged_contigs` is what moves them to `<id>.removed_contigs.fasta`.
+
+Plassembler then runs a second time on the full read set, independently of the consensus.
+Each plasmid it reports is matched against the finished contigs with skani, and
+`plasmid_audit.tsv` marks it recovered or missing. Treat a missing plasmid as a prompt to
+look, not a verdict — and note that HiFi library prep under-represents plasmids below
+~10 kb in the first place.
 
 ## Testing
 
