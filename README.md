@@ -5,9 +5,9 @@ reads: read QC, sylph contamination screen (GTDB + human), Autocycler consensus 
 hifiasm, Raven, Canu, miniasm, metaMDBG and Plassembler, finishing, assembly checks with
 pass/warn/fail gates, and a Quarto report. Built for SLURM + Singularity/Apptainer.
 
-**Status: Phase 3 complete — read QC, contamination screen, assembly, consensus and
-finishing.** Checks, gates and the report are not implemented yet. See
-[the implementation plan](docs/implementation_plan.md).
+**Status: Phase 4 complete — read QC, contamination screen, assembly, consensus,
+finishing, assembly checks and pass/warn/fail gates.** The report is not implemented yet.
+See [the implementation plan](docs/implementation_plan.md).
 
 ## Quick start
 
@@ -26,6 +26,11 @@ nextflow run main.nf --input samples.yml --outdir results -profile slurm,singula
     --sylph_human_db /shared/databases/sylph_human_db.syldb \
     --human_reference /shared/databases/chm13v2.0.fa.gz \
     --plassembler_db /shared/databases/plassembler_db \
+    --checkm2_db /shared/databases/checkm2_db/uniref100.KO.1.dmnd \
+    --bakta_db /shared/databases/db-light \
+    --busco_db /shared/databases/busco_downloads \
+    --gtdbtk_db /shared/databases/gtdbtk_db \
+    --ideel_db /shared/databases/ideel_db.dmnd \
     --publish_outputs
 ```
 
@@ -34,9 +39,12 @@ Always use `-resume`, and run the head job inside `sbatch` or `tmux`.
 ## Databases
 
 `--prepare_databases` downloads the sylph GTDB r226 database and its sylph-tax metadata,
-downloads CHM13 v2.0 and GRCh38, sketches those two into the human sylph database, and runs
-`plassembler download`. It writes everything to `--database_dir`. The five paths above are
-then required whenever `--input` is given; the run stops before any task if one is missing.
+downloads CHM13 v2.0 and GRCh38, sketches those two into the human sylph database, runs
+`plassembler download`, fetches the CheckM2 database, the Bakta light database, the BUSCO
+`--busco_lineage` dataset and the GTDB-Tk r226 package (~110 GB unpacked), and builds a
+DIAMOND database of UniProt Swiss-Prot for the IDEEL test. It writes everything to
+`--database_dir`. The ten paths above are then required whenever `--input` is given; the
+run stops before any task if one is missing.
 
 ## Parameters
 
@@ -58,6 +66,13 @@ Every parameter is declared with an explanatory comment in
 | `--min_contig_len` | `1000` | Contigs shorter than this are flagged |
 | `--chromosome_min_len` | `1000000` | A contig this long is called a chromosome |
 | `--drop_flagged_contigs` | `false` | Move flagged contigs out of the final FASTA |
+| `--qc_thresholds` | `assets/qc_thresholds.yml` | Pass/warn/fail thresholds for every check |
+| `--coverage_low_ratio`, `--coverage_high_ratio` | `0.5`, `2.0` | Depth-window flags, relative to the contig median |
+| `--clip_min_reads`, `--clip_min_fraction`, `--clip_min_length` | `5`, `0.2`, `500` | What counts as a clipping pile-up |
+| `--variant_min_depth` | `10` | Minimum depth for the allele-frequency scan |
+| `--homopolymer_min_len` | `8` | Homopolymer indels at least this long are tallied separately |
+| `--ideel_min_ratio` | `0.9` | A protein below this fraction of its best hit is truncated |
+| `--busco_lineage` | `bacteria_odb12` | BUSCO dataset, read offline from `--busco_db` |
 
 ## Outputs
 
@@ -67,8 +82,9 @@ behind it (seqkit stats, NanoPlot, GC histogram, duplicates, adapters, GenomeSco
 fraction and `contamination_summary.json`. `assemblies/<id>/` holds the selected assembly
 under `final/`, Autocycler's own `autocycler_out/` directory, the cluster dotplots,
 `assembly_attempts.tsv` and `assembly_source.tsv`, with the per-subset input assemblies
-behind `--publish_input_assemblies`. Thresholds are not applied yet: the gates and the
-report arrive in Phases 4 and 5.
+behind `--publish_input_assemblies`. `checks/<id>/` holds every check's table (below),
+`annotation/<id>/` the Bakta annotation, and `qc/<id>.qc.json` the sample's verdict. The
+report arrives in Phase 5.
 
 ## Assembly
 
@@ -103,6 +119,30 @@ Each plasmid it reports is matched against the finished contigs with skani, and
 `plasmid_audit.tsv` marks it recovered or missing. Treat a missing plasmid as a prompt to
 look, not a verdict — and note that HiFi library prep under-represents plasmids below
 ~10 kb in the first place.
+
+## Checks and gates
+
+The finished assembly is checked against the reads and against reference databases. Each
+check writes a small table under `checks/<id>/`; none of them decides pass or fail itself.
+
+| Check | Tool | Output |
+|---|---|---|
+| Unmapped reads | minimap2 `map-hifi` | `mapping.tsv`; the unmapped reads are assembled with Flye, and a circular contig among them is a possible missing replicon |
+| Uneven depth | mosdepth, 1 kb windows | `coverage_regions.tsv` (low/high regions), `contig_depth.tsv` (depth relative to the chromosome) |
+| Candidate misjoins | pysam | `clipping.tsv`: places where many reads are clipped at once |
+| Structural and small errors | Inspector | `summary_statistics`, error BEDs, QV |
+| Per-base accuracy | bcftools mpileup | `variants.tsv`: AF ≥ 0.5 (likely error) and 0.2–0.5 (mixed strain or collapsed repeat), homopolymer indels apart |
+| K-mer QV | meryl + Merqury | QV, completeness, spectra-cn plot |
+| Frameshifts | Bakta + DIAMOND vs Swiss-Prot | `ideel.tsv`: protein/hit length ratios; `rrna_depth.tsv` |
+| Completeness | CheckM2, BUSCO | completeness, contamination, duplicated BUSCOs |
+| Identity | GTDB-Tk, skani vs the samplesheet `reference` | classification, ANI |
+| Consensus | Autocycler, Bandage | `assembler_contribution.tsv`, graph image |
+
+`bin/qc_gates.py` then compares every measurement with
+[`assets/qc_thresholds.yml`](assets/qc_thresholds.yml) and writes `qc/<id>.qc.json`: one
+`{value, threshold, status, message}` entry per check and an overall status, the worst
+entry. A check that could not be measured is `not_measured` and does not change the overall
+status. To change a threshold, copy the file, edit it, and pass `--qc_thresholds`.
 
 ## Testing
 

@@ -20,7 +20,7 @@ jobs:
       - uses: nf-core/setup-nextflow@v1
       - uses: nf-core/setup-nf-test@v1
       - name: Install linters and Python test runner
-        run: python -m pip install pre-commit pytest
+        run: python -m pip install pre-commit pytest pysam
       - name: Validate formatting and Nextflow preview
         run: pre-commit run --all-files
       # Stub tasks run inside the pinned containers. Several modules report their version

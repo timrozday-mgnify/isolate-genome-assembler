@@ -1,0 +1,54 @@
+# Pass/warn/fail thresholds applied by bin/qc_gates.py. Override the whole file with
+# --qc_thresholds. Every check is a number compared with its thresholds:
+#
+#   direction: below  the check trips when value <  threshold (lower is worse)
+#   direction: above  the check trips when value >= threshold (higher is worse)
+#
+# `warn` and `fail` are each optional. A check whose value could not be measured for a
+# sample is reported as `not_measured` and does not change the sample's overall status.
+#
+# These starting values are guesses from the implementation plan. The Phase 6 benchmark
+# calibrates them, and dev/qc_threshold_calibration.md will record why each was chosen.
+
+# Read QC (stage 1)
+read_depth: {direction: below, warn: 50, fail: 25}
+# |autocycler - genomescope| / the larger of the two genome size estimates.
+genome_size_disagreement: {direction: above, warn: 0.20}
+
+# Contamination (stage 2). Abundances are fractions of all reads.
+dominant_species_abundance: {direction: below, fail: 0.90}
+secondary_species_abundance: {direction: above, warn: 0.01, fail: 0.05}
+human_read_fraction: {direction: above, warn: 0.001}
+# 1 when sylph, GTDB-Tk and the samplesheet's expected_taxon do not all agree.
+taxon_disagreement: {direction: above, warn: 1}
+
+# Assembly (stages 4-5)
+# 1 when the Autocycler consensus was not fully resolved and the Flye fallback was used.
+consensus_unresolved: {direction: above, warn: 1}
+# Chromosomes not marked circular.
+chromosome_not_circular: {direction: above, fail: 1}
+# Plasmids Plassembler found in the full read set that the assembly lacks.
+plasmids_missing: {direction: above, warn: 1}
+# Circular contigs assembled from the reads that did not map to the assembly.
+possible_missing_replicons: {direction: above, warn: 1}
+
+# Read support (check B)
+unmapped_read_fraction: {direction: above, warn: 0.02, fail: 0.10}
+coverage_regions: {direction: above, warn: 1}
+clipping_pileups: {direction: above, warn: 1, fail: 5}
+inspector_structural_errors: {direction: above, warn: 1, fail: 5}
+
+# Per-base accuracy (check D)
+variants_high_af: {direction: above, warn: 1, fail: 10}
+merqury_qv: {direction: below, warn: 50, fail: 40}
+
+# Gene-level integrity (check E)
+ideel_truncated_fraction: {direction: above, warn: 0.10, fail: 0.20}
+
+# Completeness and contamination (check F). CheckM2 and BUSCO report percentages.
+checkm2_completeness: {direction: below, warn: 98, fail: 90}
+checkm2_contamination: {direction: above, warn: 1, fail: 5}
+busco_duplicated: {direction: above, warn: 2, fail: 5}
+
+# Replicon depth (check G): the lowest plasmid depth / chromosome depth.
+plasmid_depth_ratio: {direction: below, warn: 0.5}

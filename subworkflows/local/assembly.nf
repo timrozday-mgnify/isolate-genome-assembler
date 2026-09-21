@@ -125,5 +125,6 @@ workflow ASSEMBLY {
     assembly_source = SELECT_ASSEMBLY.out.summary
     attempts = ASSEMBLY_ATTEMPTS.out.attempts
     autocycler_dir = AUTOCYCLER_CONSENSUS.out.autocycler_dir
+    consensus_gfa = AUTOCYCLER_CONSENSUS.out.gfa
     autocycler_table = AUTOCYCLER_CONSENSUS.out.table
 }

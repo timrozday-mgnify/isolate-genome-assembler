@@ -37,8 +37,9 @@ nextflow_pipeline {
                 { assert workflow.success },
                 // 16 read QC and contamination tasks, then 4 subsets x 7 assemblers
                 // (miniasm taking three processes), their normalisation, the Flye
-                // fallback and its normalisation, the consensus, and six finishing tasks.
-                { assert workflow.trace.tasks().size() == 92 },
+                // fallback and its normalisation, the consensus, six finishing tasks,
+                // 18 checks and the QC gate.
+                { assert workflow.trace.tasks().size() == 111 },
                 { assert path("$outputDir/results/reads/isolate01/isolate01.read_qc.tsv").exists() },
                 { assert path("$outputDir/results/contamination/isolate01/isolate01.contamination_summary.json").exists() },
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() },
@@ -47,7 +48,12 @@ nextflow_pipeline {
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly_source.tsv").text.contains('autocycler') },
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.fasta").exists() },
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.contigs.tsv").text.contains('isolate01_chromosome') },
-                { assert path("$outputDir/results/checks/isolate01/isolate01.plasmid_audit.tsv").exists() }
+                { assert path("$outputDir/results/checks/isolate01/isolate01.plasmid_audit.tsv").exists() },
+                { assert path("$outputDir/results/checks/isolate01/isolate01.coverage_regions.tsv").exists() },
+                { assert path("$outputDir/results/checks/isolate01/isolate01.variant_summary.tsv").exists() },
+                { assert path("$outputDir/results/checks/isolate01/isolate01.assembler_contribution.tsv").exists() },
+                { assert path("$outputDir/results/annotation/isolate01/isolate01.gff3").exists() },
+                { assert path("$outputDir/results/qc/isolate01.qc.json").json.checks.read_depth != null }
             )
         }
     }
@@ -67,7 +73,7 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert workflow.trace.tasks().size() == 44 },
+                { assert workflow.trace.tasks().size() == 63 },
                 { assert workflow.trace.tasks().every { !it.name.contains('CANU') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('HIFIASM') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('MINIASM') } },
@@ -93,8 +99,9 @@ nextflow_pipeline {
             assertAll(
                 { assert workflow.success },
                 // Read QC and contamination, then only the Flye fallback, its
-                // normalisation, the reclustering, the selection and finishing.
-                { assert workflow.trace.tasks().size() == 26 },
+                // normalisation, the reclustering, the selection, finishing, the checks
+                // and the QC gate.
+                { assert workflow.trace.tasks().size() == 45 },
                 { assert workflow.trace.tasks().every { !it.name.contains('SUBSAMPLE') } },
                 { assert workflow.trace.tasks().every { !it.name.startsWith('ISOLATE_GENOME_ASSEMBLER:ASSEMBLY:FLYE (') } },
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() }
@@ -179,9 +186,11 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert workflow.trace.tasks().size() == 6 },
+                { assert workflow.trace.tasks().size() == 14 },
                 { assert path("$outputDir/databases/sylph_human_db.syldb").exists() },
-                { assert path("$outputDir/databases/plassembler_db").exists() }
+                { assert path("$outputDir/databases/plassembler_db").exists() },
+                { assert path("$outputDir/databases/ideel_db.dmnd").exists() },
+                { assert path("$outputDir/databases/busco_downloads").exists() }
             )
         }
     }
