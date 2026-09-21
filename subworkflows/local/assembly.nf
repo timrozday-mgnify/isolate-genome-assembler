@@ -9,6 +9,8 @@ include { MINIASM                                     } from '../../modules/loca
 include { MINIPOLISH                                  } from '../../modules/local/minipolish'
 include { METAMDBG                                    } from '../../modules/local/metamdbg'
 include { PLASSEMBLER                                 } from '../../modules/local/plassembler'
+include { MYLOASM                                     } from '../../modules/local/myloasm'
+include { LJA                                         } from '../../modules/local/lja'
 include { NORMALISE_HEADERS                           } from '../../modules/local/normalise_headers'
 include { NORMALISE_HEADERS as NORMALISE_HEADERS_FULL } from '../../modules/local/normalise_headers'
 include { ASSEMBLY_ATTEMPTS                           } from '../../modules/local/assembly_attempts'
@@ -68,6 +70,9 @@ workflow ASSEMBLY {
         params.plassembler_db ? file(params.plassembler_db, checkIfExists: true) : [],
     )
 
+    MYLOASM('myloasm' in assemblers ? ch_assembler_in : channel.empty())
+    LJA('lja' in assemblers ? ch_assembler_in : channel.empty())
+
     MINIASM_OVERLAP('miniasm' in assemblers ? ch_assembler_in : channel.empty())
     MINIASM(MINIASM_OVERLAP.out.overlap)
     MINIPOLISH(MINIASM.out.graph)
@@ -80,6 +85,8 @@ workflow ASSEMBLY {
         METAMDBG.out.assembly,
         PLASSEMBLER.out.assembly,
         MINIPOLISH.out.assembly,
+        MYLOASM.out.assembly,
+        LJA.out.assembly,
     )
     NORMALISE_HEADERS(ch_native)
 

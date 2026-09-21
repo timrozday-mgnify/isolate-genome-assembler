@@ -3,8 +3,8 @@
 Status: Phase 5 complete, 2026-09-21. All eight stages (read QC, contamination screen,
 assembly, consensus, finishing, the stage 6 checks, `qc_gates.py` and the Quarto report) are
 implemented and covered by stub, unit and render tests; the real validation runs of
-Phases 1–5 are still outstanding (see each phase below). Phase 6 (benchmark and defaults)
-is next. Open decisions are resolved
+Phases 1–5 are still outstanding (see each phase below). Phase 6's benchmark harness is
+in place and waiting on its HPC runs. Open decisions are resolved
 ([Decisions](#risks-and-open-questions)). Phases are listed at the end ([Phases](#phases)).
 Update this header as each phase lands, the same way `superresolution-amplicon/docs/*_plan.md`
 does.
@@ -772,6 +772,55 @@ Results go in `dev/assembler_benchmark.{py,csv,md}`.
 - **Outputs:** default `--assemblers`, `subsample_count`, per-process resources, and
   calibrated `qc_thresholds.yml`.
 - **Done when:** defaults and thresholds are backed by the recorded results.
+- **Harness landed 2026-09-21; the runs are outstanding.** `pytest` and stub runs of both
+  benchmark modes pass, and the simulation was checked for real on *M. genitalium*
+  (1,535 reads at rq ≈ 0.998, 28.8× of 30× asked for; Flye's assembly scores edit
+  distance 1). Notes and deviations:
+  - **Myloasm and LJA were accepted by `--assemblers` but never run.** They are now
+    `MYLOASM` and `LJA` processes (flags from `helper.rs`), and `normalise_headers.py`
+    reads Myloasm's `circular-yes` / `depth-` tags. Both stay off by default.
+  - **The arms share one set of input assemblies.** The pipeline runs once per sample
+    with all 9 assemblers × 6 subsets and `--publish_input_assemblies`; `dev/benchmark.nf
+    --mode consensus` then reruns only `AUTOCYCLER_CONSENSUS` (the pipeline's own module)
+    on each arm's subset of them. Seven full pipeline runs per sample would cost seven
+    times the assembly, checks and GTDB-Tk for the same answer. Subsets 01–04 of a
+    6-subset run stand in for `subsample_count 4`: Autocycler sizes a subset from the
+    total depth alone, so only the overlap between subsets differs.
+  - **Arms live in `dev/benchmark_arms.tsv`** and genomes in `dev/benchmark_genomes.tsv`,
+    read by both the workflow and the scorer. The "fast set" is exactly Flye, hifiasm,
+    Raven and miniasm, without Plassembler, as written above.
+  - **Genomes:** eight simulated (GC 30–68%; *C. jejuni*, *S. aureus* USA300,
+    *E. faecium* Aus0004, *E. coli* Sakai, *K. pneumoniae* HS11286, *H. volcanii* DS2
+    (archaeon), *M. tuberculosis* H37Rv, *B. pseudomallei* K96243 (two chromosomes));
+    nine plasmids under 10 kb between them, the smallest 1.3 kb. Four real HiFi runs
+    whose published genome was finished with Illumina: *E. coli* ERR14041842,
+    *S. aureus* SRR26799572, *K. pneumoniae* SRR32177054 (Revio) and *P. aeruginosa*
+    SRR32076116. Their truth genomes were built partly from the same reads, so edit
+    distances there compare arms rather than measure absolute accuracy.
+  - **Simulation:** PBSIM3 `qshmm` (RSII model), 10 passes, 11 ± 3 kb inserts, then
+    `ccs`. Each replicon is simulated separately from two copies end to end at half the
+    depth, so reads cross the origin, with `--length-max` at the replicon length. Copy
+    number is not modelled; every replicon gets the sample depth, so small-plasmid loss
+    in library prep shows only in the real runs.
+  - **Scoring** (`dev/assembler_benchmark.py`, `uv run` installs mappy, edlib and pyyaml):
+    the delivered assembly is the arm's consensus when fully resolved, else the Flye
+    fallback. Each truth replicon takes its best-aligned contig, oriented and rotated to
+    the truth's start; recovered means edlib's global edit distance is within 1% of its
+    length. Cost is the arm's assembler tasks from the pipeline trace plus its consensus
+    task; wall time is the slowest assembler chain plus the consensus.
+  - **Threshold calibration** uses the same run: the report puts each sample's gate calls
+    beside how its final assembly scored against truth, and the per-process peaks from
+    the trace set the resources.
+  - **To run** (from a directory outside the repo):
+    1. `nextflow run <repo>/dev/benchmark.nf -profile slurm,singularity`
+    2. `nextflow run <repo>/main.nf --input benchmark/samples.yml --outdir results
+       -profile slurm,singularity -params-file <databases>.yml --publish_outputs
+       --publish_input_assemblies --subsample_count 6
+       --assemblers flye,hifiasm,raven,canu,miniasm,metamdbg,plassembler,myloasm,lja`
+    3. `nextflow run <repo>/dev/benchmark.nf --mode consensus --results results
+       -profile slurm,singularity`
+    4. `uv run <repo>/dev/assembler_benchmark.py --benchmark benchmark --results results`
+       writes `dev/assembler_benchmark.{csv,md}`.
 
 ### Phase 7: release
 - README complete (Parameters, Outputs, Checks and gates, HPC, Databases).

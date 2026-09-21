@@ -1,0 +1,13 @@
+name	assembly	reads_url	note
+cjejuni_81176	GCF_000015525.1		GC 30%; plasmids 37 and 45 kb
+saureus_usa300	GCF_000013465.1		GC 33%; plasmids 3.1, 4.4 and 37 kb
+efaecium_aus0004	GCF_000250945.1		GC 38%; IS-rich; plasmids 3.8, 4.1 and 57 kb
+ecoli_sakai	GCF_000008865.2		GC 50%; prophage repeats; plasmids 3.3 and 93 kb
+kpneumoniae_hs11286	GCF_000240185.1		GC 57%; six plasmids, 1.3 to 123 kb
+hvolcanii_ds2	GCF_000025685.1		archaeon; GC 66%; plasmids 6.4 to 636 kb
+mtuberculosis_h37rv	GCF_000195955.2		GC 66%; PE/PPE and IS6110 repeats; no plasmids
+bpseudomallei_k96243	GCF_000011545.1		GC 68%; two chromosomes
+ecoli_ec_real	GCA_977946285.1	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR140/042/ERR14041842/ERR14041842.fastq.gz	ERR14041842, Sequel IIe, ~69x; truth Flye + Pilon (Illumina)
+saureus_sawl001_real	GCA_040047685.1	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR267/072/SRR26799572/SRR26799572_subreads.fastq.gz	SRR26799572, Sequel IIe, ~310x; truth Canu + Illumina; plasmid 3.3 kb
+kpneumoniae_i542_real	GCA_052882745.1	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR321/054/SRR32177054/SRR32177054_subreads.fastq.gz	SRR32177054, Revio, ~195x; truth Unicycler hybrid; plasmids 3.3 to 329 kb
+paeruginosa_dg1_real	GCA_046605405.1	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR320/016/SRR32076116/SRR32076116_subreads.fastq.gz	SRR32076116, Sequel IIe, ~58x; truth Flye + Unicycler hybrid; no plasmids

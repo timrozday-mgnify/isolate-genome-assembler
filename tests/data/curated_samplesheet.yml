@@ -1,6 +1,6 @@
 # A sample being reclustered by hand: `autocycler_dir` points at a previous run's output,
 # so subsampling and the input assemblies are not repeated.
 - id: isolate01
-  reads: tests/data/isolate01.hifi_reads.fastq
-  autocycler_dir: tests/data/autocycler_dir
+  reads: isolate01.hifi_reads.fastq
+  autocycler_dir: autocycler_dir
   autocycler_cluster_args: --cutoff 0.15
