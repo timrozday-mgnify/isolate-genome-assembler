@@ -45,6 +45,8 @@ downloads CHM13 v2.0 and GRCh38, sketches those two into the human sylph databas
 DIAMOND database of UniProt Swiss-Prot for the IDEEL test. It writes everything to
 `--database_dir`. The ten paths above are then required whenever `--input` is given; the
 run stops before any task if one is missing.
+A database whose param is already set is skipped by `--prepare_databases`, so pass the
+paths you have to build only the rest.
 
 ## Parameters
 
