@@ -20,17 +20,33 @@ process HIFIADAPTERFILT {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
+    // Thresholds for the NGB00972 adapter; NGB00973 is fixed at 97% over 34 bp, as in pbadapterfilt.sh.
+    def min_length = task.ext.min_length ?: 44
+    def min_identity = task.ext.min_identity ?: 97
+    // ponytail: runs pbadapterfilt.sh's steps directly. The 3.0.0 script misreads the work dir, relies on
+    // GNU sed/dirname that the BusyBox container lacks, and cannot find its own BLAST DB here.
     """
-    ln -s ${reads} ${meta.id}.fastq.gz
-    pbadapterfilt.sh -p ${meta.id} -t ${task.cpus} ${args}
+    db=\$(dirname \$(command -v pbadapterfilt.sh))/DB/pacbio_vectors_db
 
-    # The report file records total reads, reads with adapter and the percentage.
-    awk 'BEGIN { print "reads\\tadapter_reads\\tadapter_fraction" }
-         /Number of ccs reads:/ { total = \$NF }
-         /Number of adapter contaminated ccs reads:/ { contaminated = \$(NF - 2) }
-         END { print total "\\t" contaminated "\\t" (total > 0 ? contaminated / total : 0) }' \\
-        ${meta.id}.stats > ${meta.id}.adapters.tsv
+    zcat -f ${reads} | awk 'NR % 4 == 1 { print ">" substr(\$1, 2) } NR % 4 == 2' > reads.fasta
+    blastn -db \$db -query reads.fasta -num_threads ${task.cpus} -task blastn -reward 1 -penalty -5 \\
+        -gapopen 3 -gapextend 3 -dust no -soft_masking true -evalue 700 -searchsp 1750000000000 \\
+        -outfmt 6 > ${meta.id}.blastout
+    awk -v len=${min_length} -v pct=${min_identity} \\
+        '(\$2 ~ /NGB00972/ && \$3 >= pct && \$4 >= len) || (\$2 ~ /NGB00973/ && \$3 >= 97 && \$4 >= 34) { print \$1 }' \\
+        ${meta.id}.blastout | sort -u > ${meta.id}.blocklist
+
+    zcat -f ${reads} \\
+        | awk 'FILENAME == "${meta.id}.blocklist" { block[\$1]; next }
+               FNR % 4 == 1 { keep = !(substr(\$1, 2) in block) }
+               keep' ${meta.id}.blocklist - \\
+        | gzip -1 > ${meta.id}.filt.fastq.gz
+
+    reads=\$(grep -c '^>' reads.fasta || true)
+    contaminated=\$(wc -l < ${meta.id}.blocklist)
+    printf 'reads\\tadapter_reads\\tadapter_fraction\\n' > ${meta.id}.adapters.tsv
+    awk -v n=\$reads -v c=\$contaminated 'BEGIN { print n "\\t" c "\\t" (n > 0 ? c / n : 0) }' >> ${meta.id}.adapters.tsv
+    rm reads.fasta
     """
 
     stub:
