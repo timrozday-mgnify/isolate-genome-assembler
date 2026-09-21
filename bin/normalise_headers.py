@@ -184,6 +184,24 @@ def plassembler_contigs(fasta: Path) -> list[Contig]:
     return contigs
 
 
+def myloasm_contigs(fasta: Path) -> list[Contig]:
+    """Myloasm tags circularity and depth with dashes: u1ctg_len-N_circular-yes_depth-D-D-D.
+
+    Only ``circular-yes`` counts; ``circular-possibly`` is not a closed contig.
+    """
+    contigs = []
+    for header, sequence in load_fasta(fasta):
+        depth = re.search(r"_depth-([0-9.]+)", header)
+        contigs.append(
+            Contig(
+                sequence,
+                circular="_circular-yes" in header,
+                depth=depth.group(1) if depth else None,
+            )
+        )
+    return contigs
+
+
 def first_match(directory: Path, *patterns: str) -> Path | None:
     """Return the first file matching any of the glob patterns, in the order given."""
     for pattern in patterns:
@@ -211,12 +229,17 @@ def collect(assembler: str, directory: Path) -> list[Contig]:
         fasta = first_match(directory, "plassembler_plasmids.fasta")
         return plassembler_contigs(fasta) if fasta else []
 
+    if assembler == "myloasm":
+        fasta = first_match(directory, "assembly_primary.fa")
+        return myloasm_contigs(fasta) if fasta else []
+
     if assembler in ("hifiasm", "miniasm"):
         gfa = first_match(directory, "*.gfa")
         return gfa_contigs(gfa) if gfa else []
 
-    # Raven writes its contigs to stdout and metaMDBG to a gzipped FASTA; neither tags
-    # circularity there, which matches what `autocycler helper` passes on.
+    # Raven writes its contigs to stdout, metaMDBG to a gzipped FASTA and LJA to
+    # assembly.fasta. None tags circularity there, which matches what
+    # `autocycler helper` passes on.
     fasta = first_match(directory, "*.fasta", "*.fasta.gz", "*.fa", "*.fa.gz")
     return plain_contigs(fasta) if fasta else []
 

@@ -89,6 +89,27 @@ nextflow_pipeline {
         }
     }
 
+    test("the opt-in Myloasm and LJA assemblies reach the consensus") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/valid_samplesheet.yml"
+                outdir = "$outputDir/results"
+                assemblers = 'myloasm,lja'
+            }
+        }
+
+        then {
+            def normalised = workflow.trace.succeeded().findAll { it.name.contains(':NORMALISE_HEADERS (') }
+            assertAll(
+                { assert workflow.success },
+                { assert normalised.count { it.name.contains('_myloasm_') } == 4 },
+                { assert normalised.count { it.name.contains('_lja_') } == 4 }
+            )
+        }
+    }
+
     test("autocycler_dir skips subsampling and the input assemblies") {
         options "-stub"
 

@@ -81,6 +81,18 @@ def test_metamdbg_gzipped_contigs_are_read(tmp_path: Path) -> None:
     assert headers(normalise(tmp_path, "metamdbg")) == ["metamdbg_01_1 length=8"]
 
 
+def test_myloasm_dash_tags_become_circular_and_depth(tmp_path: Path) -> None:
+    (tmp_path / "assembly_primary.fa").write_text(
+        ">u1ctg_len-4_circular-yes_depth-30.5-29-28_duplicated-no mult=1.00\nACGT\n"
+        ">u2ctg_len-4_circular-possibly_depth-9-9-9_duplicated-no mult=1.00\nAAAA\n"
+    )
+
+    assert headers(normalise(tmp_path, "myloasm")) == [
+        "myloasm_01_1 length=4 depth=30.5 circular=true",
+        "myloasm_01_2 length=4 depth=9",
+    ]
+
+
 def test_plassembler_circular_plasmids_get_double_cluster_weight(
     tmp_path: Path,
 ) -> None:
