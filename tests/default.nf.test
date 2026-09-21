@@ -206,6 +206,17 @@ nextflow_pipeline {
                 prepare_databases = true
                 outdir = "$outputDir/results"
                 database_dir = "$outputDir/databases"
+                // conf/test.config sets every database, which would skip them all.
+                sylph_gtdb_db = null
+                sylph_gtdb_taxonomy = null
+                sylph_human_db = null
+                human_reference = null
+                plassembler_db = null
+                checkm2_db = null
+                bakta_db = null
+                busco_db = null
+                gtdbtk_db = null
+                ideel_db = null
             }
         }
 
@@ -217,6 +228,36 @@ nextflow_pipeline {
                 { assert path("$outputDir/databases/plassembler_db").exists() },
                 { assert path("$outputDir/databases/ideel_db.dmnd").exists() },
                 { assert path("$outputDir/databases/busco_downloads").exists() }
+            )
+        }
+    }
+
+    test("--prepare_databases skips databases whose param is already set") {
+        options "-stub"
+
+        when {
+            params {
+                prepare_databases = true
+                outdir = "$outputDir/results"
+                database_dir = "$outputDir/databases"
+                // conf/test.config sets every database; unset the ones to build.
+                sylph_gtdb_taxonomy = null
+                human_reference = null
+                checkm2_db = null
+                busco_db = null
+                gtdbtk_db = null
+                ideel_db = null
+            }
+        }
+
+        then {
+            // CHM13 still downloads because --human_reference is unset; GRCh38 does not.
+            assertAll(
+                { assert workflow.success },
+                { assert workflow.trace.tasks().size() == 9 },
+                { assert !path("$outputDir/databases/sylph_human_db.syldb").exists() },
+                { assert !path("$outputDir/databases/plassembler_db").exists() },
+                { assert path("$outputDir/databases/ideel_db.dmnd").exists() }
             )
         }
     }
