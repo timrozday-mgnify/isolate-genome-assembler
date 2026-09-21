@@ -28,11 +28,16 @@ def run(tmp_path: Path, rotated: str, **extra: object) -> Result:
     removed = tmp_path / "removed.fasta"
     table = tmp_path / "contigs.tsv"
     argv = [
-        "--sample", "isolate01",
-        "--rotated", str(rotated_path),
-        "--output", str(output),
-        "--removed", str(removed),
-        "--table", str(table),
+        "--sample",
+        "isolate01",
+        "--rotated",
+        str(rotated_path),
+        "--output",
+        str(output),
+        "--removed",
+        str(removed),
+        "--table",
+        str(table),
     ]
     for name, value in extra.items():
         flag = f"--{name.replace('_', '-')}"
@@ -50,7 +55,9 @@ CHROMOSOME_AND_PLASMID = (
 )
 
 
-def test_the_longest_contig_is_the_chromosome_and_circular_ones_are_plasmids(tmp_path: Path) -> None:
+def test_the_longest_contig_is_the_chromosome_and_circular_ones_are_plasmids(
+    tmp_path: Path,
+) -> None:
     result = run(tmp_path, CHROMOSOME_AND_PLASMID)
     names = [(row["contig"], row["replicon_type"]) for row in result.rows]
     assert names == [
@@ -83,7 +90,9 @@ def test_several_long_contigs_are_all_chromosomes_and_numbered(tmp_path: Path) -
     ]
 
 
-def test_short_linear_and_low_depth_contigs_are_flagged_but_kept(tmp_path: Path) -> None:
+def test_short_linear_and_low_depth_contigs_are_flagged_but_kept(
+    tmp_path: Path,
+) -> None:
     fasta = (
         ">c1 length=2000000 depth=40 circular=true\n" + "A" * 2_000_000 + "\n"
         ">c2 length=500 depth=1 circular=false\n" + "C" * 500 + "\n"
@@ -135,7 +144,9 @@ def test_a_contig_whose_ends_still_overlap_is_flagged(tmp_path: Path) -> None:
     assert rows[0]["flags"] == ""
 
 
-def test_an_alignment_between_two_different_contigs_is_not_a_self_overlap(tmp_path: Path) -> None:
+def test_an_alignment_between_two_different_contigs_is_not_a_self_overlap(
+    tmp_path: Path,
+) -> None:
     paf = tmp_path / "ends.paf"
     paf.write_text(
         "contig_1_start\t10000\t0\t9000\t+\tcontig_2_end\t10000\t1000\t10000\t8900\t9000\t60\n"

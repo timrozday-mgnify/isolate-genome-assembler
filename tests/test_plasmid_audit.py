@@ -19,7 +19,9 @@ SKANI_HEADER = "Ref_file\tQuery_file\tANI\tAlign_fraction_ref\tAlign_fraction_qu
 
 
 def skani_row(query: str, reference: str, ani: float, coverage: float) -> str:
-    return f"final.fasta\tplasmids.fasta\t{ani}\t50.0\t{coverage}\t{reference}\t{query}\n"
+    return (
+        f"final.fasta\tplasmids.fasta\t{ani}\t50.0\t{coverage}\t{reference}\t{query}\n"
+    )
 
 
 def run(tmp_path: Path, summary: str | None, skani: str) -> list[dict[str, str]]:
@@ -60,7 +62,9 @@ def test_a_plasmid_with_no_skani_hit_is_missing(tmp_path: Path) -> None:
     assert rows[1]["matched_contig"] == ""
 
 
-def test_a_hit_below_the_coverage_threshold_does_not_count_as_recovered(tmp_path: Path) -> None:
+def test_a_hit_below_the_coverage_threshold_does_not_count_as_recovered(
+    tmp_path: Path,
+) -> None:
     # A plasmid the assembly only partly contains is exactly the case the audit exists to
     # catch, so a high-identity, low-coverage hit must not pass.
     skani = SKANI_HEADER + skani_row("1", "isolate01_chromosome", 99.9, 40.0)
@@ -74,7 +78,9 @@ def test_a_hit_below_the_identity_threshold_does_not_count(tmp_path: Path) -> No
     assert rows[0]["status"] == "missing"
 
 
-def test_the_best_hit_wins_when_a_plasmid_matches_several_contigs(tmp_path: Path) -> None:
+def test_the_best_hit_wins_when_a_plasmid_matches_several_contigs(
+    tmp_path: Path,
+) -> None:
     skani = (
         SKANI_HEADER
         + skani_row("1", "isolate01_chromosome", 99.0, 91.0)
@@ -84,7 +90,9 @@ def test_the_best_hit_wins_when_a_plasmid_matches_several_contigs(tmp_path: Path
     assert rows[0]["matched_contig"] == "isolate01_plasmid_1"
 
 
-def test_a_sample_with_no_plasmids_gives_an_empty_table_not_an_error(tmp_path: Path) -> None:
+def test_a_sample_with_no_plasmids_gives_an_empty_table_not_an_error(
+    tmp_path: Path,
+) -> None:
     assert run(tmp_path, "contig\tlength\n", SKANI_HEADER) == []
 
 

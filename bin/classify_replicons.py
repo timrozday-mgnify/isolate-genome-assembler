@@ -119,7 +119,9 @@ def flag(
 ) -> None:
     """Attach every flag a contig earns. Depth is relative to the chromosome."""
     chromosome_depths = [
-        c.depth for c in contigs if c.replicon_type == CHROMOSOME and c.depth is not None
+        c.depth
+        for c in contigs
+        if c.replicon_type == CHROMOSOME and c.depth is not None
     ]
     chromosome_depth = max(chromosome_depths) if chromosome_depths else None
 
@@ -144,7 +146,9 @@ def flag(
 def rename(contigs: list[Contig], sample: str) -> None:
     """Name the replicons ``<id>_chromosome`` and ``<id>_plasmid_1..n``, longest first."""
     counters = {CHROMOSOME: 0, PLASMID: 0, UNPLACED: 0}
-    totals = {kind: sum(1 for c in contigs if c.replicon_type == kind) for kind in counters}
+    totals = {
+        kind: sum(1 for c in contigs if c.replicon_type == kind) for kind in counters
+    }
 
     for contig in sorted(contigs, key=lambda c: c.length, reverse=True):
         kind = contig.replicon_type
@@ -162,7 +166,10 @@ def write_outputs(contigs: list[Contig], args: argparse.Namespace) -> None:
 
     order = sorted(
         kept,
-        key=lambda c: ({CHROMOSOME: 0, PLASMID: 1, UNPLACED: 2}[c.replicon_type], -c.length),
+        key=lambda c: (
+            {CHROMOSOME: 0, PLASMID: 1, UNPLACED: 2}[c.replicon_type],
+            -c.length,
+        ),
     )
     args.output.write_text("".join(f">{c.header()}\n{c.sequence}\n" for c in order))
     args.removed.write_text("".join(f">{c.header()}\n{c.sequence}\n" for c in removed))
@@ -170,8 +177,17 @@ def write_outputs(contigs: list[Contig], args: argparse.Namespace) -> None:
     with args.table.open("w", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
         writer.writerow(
-            ["sample", "contig", "original_contig", "replicon_type", "length", "depth",
-             "circular", "flags", "in_final_assembly"]
+            [
+                "sample",
+                "contig",
+                "original_contig",
+                "replicon_type",
+                "length",
+                "depth",
+                "circular",
+                "flags",
+                "in_final_assembly",
+            ]
         )
         for contig in sorted(contigs, key=lambda c: c.length, reverse=True):
             writer.writerow(
@@ -192,9 +208,15 @@ def write_outputs(contigs: list[Contig], args: argparse.Namespace) -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sample", required=True)
-    parser.add_argument("--rotated", type=Path, required=True, help="dnaapler's reoriented FASTA")
-    parser.add_argument("--unrotated", type=Path, help="dnaapler's failed_to_reorient FASTA")
-    parser.add_argument("--end-overlaps", type=Path, help="PAF of contig ends against each other")
+    parser.add_argument(
+        "--rotated", type=Path, required=True, help="dnaapler's reoriented FASTA"
+    )
+    parser.add_argument(
+        "--unrotated", type=Path, help="dnaapler's failed_to_reorient FASTA"
+    )
+    parser.add_argument(
+        "--end-overlaps", type=Path, help="PAF of contig ends against each other"
+    )
     parser.add_argument("--min-contig-len", type=int, default=1000)
     parser.add_argument("--chromosome-min-len", type=int, default=1_000_000)
     parser.add_argument("--min-depth-ratio", type=float, default=0.1)
@@ -218,7 +240,13 @@ def main(argv: list[str] | None = None) -> int:
 
     unrotated = {header.split()[0] for header, _ in unrotated_records}
     classify(contigs, args.chromosome_min_len)
-    flag(contigs, args.min_contig_len, args.min_depth_ratio, unrotated, self_overlapping(args.end_overlaps))
+    flag(
+        contigs,
+        args.min_contig_len,
+        args.min_depth_ratio,
+        unrotated,
+        self_overlapping(args.end_overlaps),
+    )
     rename(contigs, args.sample)
     write_outputs(contigs, args)
     return 0

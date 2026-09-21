@@ -39,7 +39,9 @@ def first_word(value: object) -> str:
     return str(value or "").split()[0] if str(value or "").strip() else ""
 
 
-def best_matches(rows: list[dict[str, str]], min_identity: float, min_coverage: float) -> dict[str, dict[str, str]]:
+def best_matches(
+    rows: list[dict[str, str]], min_identity: float, min_coverage: float
+) -> dict[str, dict[str, str]]:
     """The best final contig for each Plassembler plasmid, keyed by the plasmid's name.
 
     skani's query is the Plassembler plasmid and the reference is the final assembly, so
@@ -90,9 +92,15 @@ def audit(args: argparse.Namespace) -> list[dict[str, object]]:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sample", required=True)
-    parser.add_argument("--plassembler-summary", type=Path, help="plassembler_summary.tsv")
-    parser.add_argument("--skani", type=Path, help="skani dist of the plasmids vs the assembly")
-    parser.add_argument("--min-identity", type=float, default=95.0, help="Minimum skani ANI")
+    parser.add_argument(
+        "--plassembler-summary", type=Path, help="plassembler_summary.tsv"
+    )
+    parser.add_argument(
+        "--skani", type=Path, help="skani dist of the plasmids vs the assembly"
+    )
+    parser.add_argument(
+        "--min-identity", type=float, default=95.0, help="Minimum skani ANI"
+    )
     parser.add_argument(
         "--min-coverage",
         type=float,
@@ -118,13 +126,18 @@ def main(argv: list[str] | None = None) -> int:
         "coverage",
     ]
     with args.output.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t", lineterminator="\n")
+        writer = csv.DictWriter(
+            handle, fieldnames=fields, delimiter="\t", lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(rows)
 
     missing = sum(1 for row in rows if row["status"] == "missing")
     if missing:
-        print(f"{missing} Plassembler plasmid(s) missing from the assembly", file=sys.stderr)
+        print(
+            f"{missing} Plassembler plasmid(s) missing from the assembly",
+            file=sys.stderr,
+        )
     return 0
 
 
