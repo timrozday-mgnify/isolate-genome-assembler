@@ -21,7 +21,7 @@ process HUMAN_FRACTION {
 
     script:
     """
-    cut -f1 ${paf} | sort --unique > ${meta.id}.human_read_ids.txt
+    cut -f1 ${paf} | sort -u > ${meta.id}.human_read_ids.txt
     total=\$(seqkit stats --tabular ${reads} | awk 'NR == 2 { print \$4 }')
     human=\$(wc -l < ${meta.id}.human_read_ids.txt)
     printf 'reads\\thuman_reads\\thuman_fraction\\n%s\\t%s\\t%s\\n' \\
