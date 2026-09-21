@@ -69,7 +69,7 @@ Autocycler is tuned for:
 | hifiasm | `hifiasm -t T -o d/hifiasm -l 0 -f 0 reads` | `hifiasm.bp.p_ctg.gfa` → fasta |
 | Raven | `raven --threads T --disable-checkpoints --graphical-fragment-assembly out.gfa reads` | stdout fasta |
 | Canu | `canu -p canu -d d -fast genomeSize=G useGrid=false maxThreads=T -pacbio-hifi reads` | `canu.contigs.fasta`: repeat/bubble contigs dropped, circular contigs trimmed by `trim=`, depths from `canu.contigs.layout.tigInfo` |
-| miniasm + Minipolish | `minimap2 -k23 -Xw11 -e0 -m100 reads reads` → `miniasm -f reads` → `minipolish --minimap2-preset map-hifi` | polished GFA → fasta |
+| miniasm + Minipolish | `minimap2 -k23 -Xw11 -e0 -m100 reads reads` → `miniasm -f reads` → `minipolish --minimap2-preset map-hifi --skip_initial` | polished GFA → fasta |
 | metaMDBG | `metaMDBG asm --in-hifi reads --out-dir d --threads T` | `contigs.fasta.gz` |
 | Plassembler | `plassembler long -d DB -l reads --pacbio_model pacbio-hifi --skip_qc` | `plassembler_plasmids.fasta`, circular contigs tagged `Autocycler_cluster_weight=2` |
 
