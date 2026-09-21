@@ -32,6 +32,7 @@ process PLASSEMBLER {
     """
     export PERL5LIB=/usr/local/lib/perl5/5.32/site_perl:/usr/local/lib/perl5/site_perl:/usr/local/lib/perl5/5.32/vendor_perl:/usr/local/lib/perl5/vendor_perl:/usr/local/lib/perl5/5.32/core_perl:/usr/local/lib/perl5/core_perl
 
+    status=0
     plassembler long \\
         -d ${plassembler_db} \\
         -l ${reads} \\
@@ -40,7 +41,17 @@ process PLASSEMBLER {
         --force \\
         --skip_qc \\
         --pacbio_model pacbio-hifi \\
-        ${args}
+        ${args} 2> plassembler.log || status=\$?
+    cat plassembler.log >&2
+
+    # Plassembler exits 1 when its Flye run yields no chromosome-length contig, which shallow
+    # reads make routine. It cannot separate plasmids from chromosome then, so this is
+    # reported as no plasmids rather than a failure.
+    if [ "\$status" -ne 0 ]; then
+        grep -q 'No chromosome was identified' plassembler.log || exit "\$status"
+        rm -rf out
+        mkdir out
+    fi
 
     find out -mindepth 1 -maxdepth 1 ! -name 'plassembler_plasmids.fasta' \\
         ! -name 'plassembler_plasmids.gfa' ! -name 'plassembler_summary.tsv' -exec rm -rf {} +
