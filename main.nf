@@ -9,13 +9,13 @@ def failSamplesheet(message) {
     error "Invalid samplesheet '${params.input}': ${message}"
 }
 
-def resolveInputFile(value, sampleId, field, extensions) {
+def resolveInputFile(value, baseDir, sampleId, field, extensions) {
     if (!(value instanceof String) || !isNonBlank(value)) {
         failSamplesheet("sample '${sampleId}' key '${field}' must be a non-empty path")
     }
 
     def candidate = java.nio.file.Path.of(value).normalize()
-    def resolved = candidate.isAbsolute() ? candidate : projectDir.resolve(candidate).normalize()
+    def resolved = candidate.isAbsolute() ? candidate : baseDir.resolve(candidate).normalize()
     if (!java.nio.file.Files.isRegularFile(resolved)) {
         failSamplesheet("sample '${sampleId}' key '${field}' does not exist or is not a file: ${resolved}")
     }
@@ -25,13 +25,13 @@ def resolveInputFile(value, sampleId, field, extensions) {
     file(resolved)
 }
 
-def resolveInputDirectory(value, sampleId, field) {
+def resolveInputDirectory(value, baseDir, sampleId, field) {
     if (!(value instanceof String) || !isNonBlank(value)) {
         failSamplesheet("sample '${sampleId}' key '${field}' must be a non-empty directory path")
     }
 
     def candidate = java.nio.file.Path.of(value).normalize()
-    def resolved = candidate.isAbsolute() ? candidate : projectDir.resolve(candidate).normalize()
+    def resolved = candidate.isAbsolute() ? candidate : baseDir.resolve(candidate).normalize()
     if (!java.nio.file.Files.isDirectory(resolved)) {
         failSamplesheet("sample '${sampleId}' key '${field}' does not exist or is not a directory: ${resolved}")
     }
@@ -104,7 +104,7 @@ def parseSamplesheet(samplesheet) {
             failSamplesheet("sample '${row.id}' key 'reads' must contain at least one path")
         }
         def readFiles = readValues.collect { read ->
-            resolveInputFile(read, row.id, 'reads', ~/(?i).*\.(fastq|fq)(\.gz)?|.*\.bam/)
+            resolveInputFile(read, samplesheetPath.parent, row.id, 'reads', ~/(?i).*\.(fastq|fq)(\.gz)?|.*\.bam/)
         }
 
         def meta = [id: row.id]
@@ -118,13 +118,13 @@ def parseSamplesheet(samplesheet) {
             meta.expected_taxon = row.expected_taxon.toString()
         }
         if (row.reference != null) {
-            meta.reference = resolveInputFile(row.reference, row.id, 'reference', ~/(?i).*\.f(ast)?a(\.gz)?/)
+            meta.reference = resolveInputFile(row.reference, samplesheetPath.parent, row.id, 'reference', ~/(?i).*\.f(ast)?a(\.gz)?/)
         }
         if (isNonBlank(row.autocycler_cluster_args)) {
             meta.autocycler_cluster_args = row.autocycler_cluster_args.toString()
         }
         if (row.autocycler_dir != null) {
-            meta.autocycler_dir = resolveInputDirectory(row.autocycler_dir, row.id, 'autocycler_dir')
+            meta.autocycler_dir = resolveInputDirectory(row.autocycler_dir, samplesheetPath.parent, row.id, 'autocycler_dir')
         }
 
         [meta, readFiles]

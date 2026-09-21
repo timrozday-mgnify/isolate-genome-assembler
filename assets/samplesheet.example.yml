@@ -1,5 +1,6 @@
 # id                       required. Unique identifier made of letters, digits, '.', '_' or '-'.
 # reads                    required. HiFi FASTQ(.gz) or PacBio hifi_reads.bam; path or list.
+#                          Relative paths are resolved against this file's directory.
 # genome_size              optional. e.g. 5.2m. If omitted, Phase 1 estimates it.
 # expected_taxon           optional. GTDB-style lineage, e.g. "g__Escherichia".
 # reference                optional. Closest known complete genome FASTA.
