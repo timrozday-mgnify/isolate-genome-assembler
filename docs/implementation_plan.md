@@ -1,11 +1,12 @@
 # isolate-genome-assembler: implementation plan
 
-Status: Phase 1 complete, 2026-09-20. Stages 1–2 (read QC and the sylph contamination
-screen) and the database build are implemented and covered by stub and unit tests; the real
-two-isolate validation run is still outstanding (see Phase 1 below). Phase 2 is next. Open
-decisions are resolved ([Decisions](#risks-and-open-questions)). Phases are listed at the end
-([Phases](#phases)). Update this header as each phase lands, the same way
-`superresolution-amplicon/docs/*_plan.md` does.
+Status: Phase 4 complete, 2026-09-21. Stages 1–7 up to the QC gates (read QC, contamination
+screen, assembly, consensus, finishing, the stage 6 checks and `qc_gates.py`) are implemented
+and covered by stub and unit tests; the real validation runs of Phases 1–4 are still
+outstanding (see each phase below). Phase 5 (the report) is next. Open decisions are resolved
+([Decisions](#risks-and-open-questions)). Phases are listed at the end ([Phases](#phases)).
+Update this header as each phase lands, the same way `superresolution-amplicon/docs/*_plan.md`
+does.
 
 ## Goal
 
@@ -668,6 +669,48 @@ results/
 - **Done when:** every check has a pytest, and the mixed read set, a deliberately broken
   assembly (an inserted 1 kb inversion + 5 homopolymer indels) and a clean assembly produce
   the expected statuses.
+- **Landed 2026-09-21.** Stub tests and `pytest` pass. Notes and deviations:
+  - **Circular contigs are mapped as they are**, not against a copy with 20 kb of the start
+    appended. A read spanning the origin is split there into a primary and a supplementary
+    alignment; mosdepth counts both, and `clipping_pileups.py` ignores clips within 1 kb
+    of a contig end, so nothing needs folding back.
+  - **No `bcftools call`.** `VARIANT_PILEUP` keeps mpileup's allele depths and
+    `variant_scan.py` computes the allele frequency from them. A haploid caller reports
+    only the majority allele, which would hide the AF 0.2–0.5 sites this check exists for.
+    The nf-core `bcftools/mpileup` module pipes into `call`, so the process is local.
+  - **Unmapped reads are assembled with Flye but not re-profiled with sylph.** Stage 2
+    already profiled every read, so a contaminant is already in `contamination_summary.json`;
+    a second GTDB profile would cost another ~15 GB of RAM per sample to say it again.
+    Flye is skipped when every read mapped.
+  - **`--annotate_failed` is not implemented;** annotation runs on every sample. CheckM2
+    contamination and the GTDB-Tk call are what explain most failing samples, so skipping
+    them would save compute at the cost of the diagnosis. Revisit if Phase 6 shows the
+    cost matters.
+  - **Bandage draws the consensus graph only,** fallback or not. An unresolved consensus
+    graph is what explains a fallback, and the Flye graph is published under `flye_full/`.
+  - **The minimap2 dotplot against the reference moves to Phase 5**, where the report
+    draws it; skani against the reference runs here.
+  - **Thresholds reach `qc_gates.py` as JSON.** The workflow reads the YAML with snakeyaml
+    at start-up, so a malformed file fails before any task runs, and the gate process
+    needs nothing beyond the standard library. Every check is numeric with a direction,
+    so the categorical ones are counts (`consensus_unresolved`, `chromosome_not_circular`,
+    `taxon_disagreement`). A check that did not run is `not_measured` and never changes
+    the overall status. When sylph places no species at all (an isolate GTDB does not
+    hold), the two species-abundance gates are `not_measured` rather than failing.
+  - **Checks added to the gate table:** genome-size disagreement (stage 1's 20% warn),
+    possible missing replicons from the unmapped reads, and the lowest plasmid depth ratio
+    (check G's 0.5 warn). Clipping pile-ups and Inspector structural errors are gated
+    separately, with the table's shared thresholds.
+  - **Inspector runs with `--min_contig_length 1000 --min_contig_length_assemblyerror 1000`.**
+    Its defaults skip contigs under 10 kb, and structural calls under 1 Mb, which would
+    leave every plasmid unchecked.
+  - **meryl is now an nf-core module** (`meryl/count`), so it is used rather than a local one.
+    Merqury's k comes from the genome size with `best_k.sh`'s formula.
+  - **Five new required databases** (`checkm2_db`, `bakta_db`, `busco_db`, `gtdbtk_db`,
+    `ideel_db`), built by `--prepare_databases`.
+  - **Still outstanding:** the mixed read set, the deliberately broken assembly and the
+    clean assembly. They need the real databases and the Phase 6 read set, and are run
+    together with Phase 1's validation runs.
 
 ### Phase 5: report
 - `collect_metrics.py`, the `.qmd` template, the report image + `build-images.yml`, the

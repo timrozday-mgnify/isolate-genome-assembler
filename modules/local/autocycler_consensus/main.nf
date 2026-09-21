@@ -24,6 +24,7 @@ process AUTOCYCLER_CONSENSUS {
     tuple val(meta), path("${meta.id}.consensus.yaml"), emit: metrics
     tuple val(meta), path("${meta.id}.autocycler_table.tsv"), emit: table
     tuple val(meta), path('dotplots/*.png'), emit: dotplots, optional: true
+    tuple val(meta), path('autocycler_out/consensus_assembly.gfa'), emit: gfa, optional: true
     tuple val("${task.process}"), val('autocycler'), eval("autocycler --version | sed 's/^.*r //; s/^autocycler //'"), topic: versions
 
     when:
@@ -86,6 +87,7 @@ process AUTOCYCLER_CONSENSUS {
     mkdir -p autocycler_out/clustering/qc_pass/cluster_001
     printf '>cluster_1 length=4 circular=true\\nACGT\\n' > ${meta.id}.consensus.fasta
     cp ${meta.id}.consensus.fasta autocycler_out/consensus_assembly.fasta
+    printf 'H\\tVN:Z:1.0\\nS\\t1\\tACGT\\n' > autocycler_out/consensus_assembly.gfa
     echo 'consensus_assembly_fully_resolved: ${params.stub_fully_resolved}' > ${meta.id}.consensus.yaml
     cp ${meta.id}.consensus.yaml autocycler_out/consensus_assembly.yaml
     printf 'name\\tconsensus_assembly_fully_resolved\\n${meta.id}\\t${params.stub_fully_resolved}\\n' > ${meta.id}.autocycler_table.tsv

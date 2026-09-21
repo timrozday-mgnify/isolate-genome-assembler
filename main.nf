@@ -132,7 +132,18 @@ def parseSamplesheet(samplesheet) {
 }
 
 def requireDatabases() {
-    def missing = ['sylph_gtdb_db', 'sylph_gtdb_taxonomy', 'sylph_human_db', 'human_reference', 'plassembler_db']
+    def missing = [
+        'sylph_gtdb_db',
+        'sylph_gtdb_taxonomy',
+        'sylph_human_db',
+        'human_reference',
+        'plassembler_db',
+        'checkm2_db',
+        'bakta_db',
+        'busco_db',
+        'gtdbtk_db',
+        'ideel_db',
+    ]
         .findAll { !isNonBlank(params[it]) }
     if (missing) {
         error "Missing required database param(s): ${missing.collect { "--${it}" }.join(', ')}. Build them once with `nextflow run main.nf --prepare_databases`."

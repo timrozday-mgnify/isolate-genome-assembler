@@ -5,9 +5,74 @@
     "https://github.com/nf-core/modules.git": {
       "modules": {
         "nf-core": {
+          "bakta/bakta": {
+            "branch": "master",
+            "git_sha": "2080397432fcb0d079121dbacf22ce42ef175cec",
+            "installed_by": ["modules"]
+          },
+          "bakta/baktadbdownload": {
+            "branch": "master",
+            "git_sha": "81fe5e6f07fa92ecfd1721373620e2538a1466eb",
+            "installed_by": ["modules"]
+          },
+          "bandage/image": {
+            "branch": "master",
+            "git_sha": "54e41f4ed3aead45054380a9befeb927612ffc91",
+            "installed_by": ["modules"]
+          },
+          "busco/busco": {
+            "branch": "master",
+            "git_sha": "3927a974459b80b8e24d73e00da029e8c7335c4d",
+            "installed_by": ["modules"]
+          },
+          "busco/download": {
+            "branch": "master",
+            "git_sha": "3927a974459b80b8e24d73e00da029e8c7335c4d",
+            "installed_by": ["modules"]
+          },
+          "checkm2/databasedownload": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          },
+          "checkm2/predict": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          },
+          "diamond/blastp": {
+            "branch": "master",
+            "git_sha": "83ce9b314157a24d9a92f17a07ed5d55f30b78f9",
+            "installed_by": ["modules"]
+          },
+          "diamond/makedb": {
+            "branch": "master",
+            "git_sha": "83ce9b314157a24d9a92f17a07ed5d55f30b78f9",
+            "installed_by": ["modules"]
+          },
+          "gtdbtk/classifywf": {
+            "branch": "master",
+            "git_sha": "b581ebb37c529fa07e22c38d128a7c5c273ed286",
+            "installed_by": ["modules"]
+          },
+          "merqury/merqury": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          },
+          "meryl/count": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
+            "installed_by": ["modules"]
+          },
           "minimap2/align": {
             "branch": "master",
             "git_sha": "135d883a43b1a2324b4112cd270cf22e20835533",
+            "installed_by": ["modules"]
+          },
+          "mosdepth": {
+            "branch": "master",
+            "git_sha": "999b9db1d6b8bdc591e1168e183f4cc87d6606f9",
             "installed_by": ["modules"]
           },
           "nanoplot": {
@@ -33,6 +98,11 @@
           "sylph/query": {
             "branch": "master",
             "git_sha": "620983b7f0c876448d4599052fb90e40848b1d7d",
+            "installed_by": ["modules"]
+          },
+          "untar": {
+            "branch": "master",
+            "git_sha": "6d46786420b4d7bc88eba026eb389c0c5535d120",
             "installed_by": ["modules"]
           }
         }
