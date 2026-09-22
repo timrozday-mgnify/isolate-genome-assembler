@@ -23,11 +23,26 @@ process DNAAPLER {
     script:
     def args = task.ext.args ?: '--autocomplete mystery'
     """
+    # Every --autocomplete mode exits dnaapler outright on a no-hit contig with fewer than
+    # 4 CDS (mystery/largest; nearest needs 2), so list those small contigs for --ignore.
+    # They are kept in the output as-is. Counted with the same pyrodigal call dnaapler uses.
+    # ponytail: a small contig that does have a gene hit is ignored too; rotation of a <4 CDS
+    # contig is cosmetic.
+    python3 - <<'EOF' > ignore.txt
+    import pyrodigal
+    from Bio import SeqIO
+    finder = pyrodigal.GeneFinder(meta=True)
+    for record in SeqIO.parse("${assembly}", "fasta"):
+        if len(finder.find_genes(str(record.seq))) < 4:
+            print(record.id)
+    EOF
+
     dnaapler all \\
         --input ${assembly} \\
         --output dnaapler \\
         --prefix ${meta.id} \\
         --threads ${task.cpus} \\
+        --ignore ignore.txt \\
         --force \\
         ${args}
 
