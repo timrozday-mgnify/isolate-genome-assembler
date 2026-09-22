@@ -77,9 +77,14 @@ process SIMULATE_SUBREADS {
         i=\$((i + 1))
         samtools faidx ${truth} "\$contig" \\
             | awk 'NR == 1 { print ">replicon"; next } { s = s \$0 } END { print s s }' > doubled.fa
+        # A replicon shorter than twice the mean read length (small plasmids) gets its mean and
+        # sd scaled down to half its length: PBSIM3 dies with SIGFPE when --length-max sits
+        # far below --length-mean.
+        mean=\$(( length / 2 < ${params.sim_length_mean} ? length / 2 : ${params.sim_length_mean} ))
+        sd=\$(( mean * ${params.sim_length_sd} / ${params.sim_length_mean} ))
         pbsim --strategy wgs --method qshmm --qshmm /usr/local/data/QSHMM-RSII.model \\
             --genome doubled.fa --depth ${depth / 2} --pass-num ${params.sim_passes} \\
-            --length-mean ${params.sim_length_mean} --length-sd ${params.sim_length_sd} \\
+            --length-mean \$mean --length-sd \$sd \\
             --length-max \$(( length < 1000000 ? length : 1000000 )) --prefix "r\$i" --id-prefix "R\${i}_" --seed \$((${depth} * 100 + i))
         rm doubled.fa "r\${i}_0001.maf.gz" "r\${i}_0001.ref"
     done < ${truth}.fai
