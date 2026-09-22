@@ -53,8 +53,8 @@ process TRUTH {
 
 // PBSIM3 multi-pass subreads, one replicon at a time. Every replicon is circular, so each is
 // simulated from two copies end to end at half the depth, which gives reads across the
-// origin; --length-max keeps a read no longer than the replicon itself. Copy number is not
-// modelled: every replicon gets the sample depth.
+// origin; --length-max keeps a read no longer than the replicon itself, up to PBSIM3's own
+// 1 Mb limit. Copy number is not modelled: every replicon gets the sample depth.
 process SIMULATE_SUBREADS {
     tag "${name}_${depth}x"
     label 'process_single'
@@ -80,7 +80,7 @@ process SIMULATE_SUBREADS {
         pbsim --strategy wgs --method qshmm --qshmm /usr/local/data/QSHMM-RSII.model \\
             --genome doubled.fa --depth ${depth / 2} --pass-num ${params.sim_passes} \\
             --length-mean ${params.sim_length_mean} --length-sd ${params.sim_length_sd} \\
-            --length-max "\$length" --prefix "r\$i" --id-prefix "R\${i}_" --seed \$((${depth} * 100 + i))
+            --length-max \$(( length < 1000000 ? length : 1000000 )) --prefix "r\$i" --id-prefix "R\${i}_" --seed \$((${depth} * 100 + i))
         rm doubled.fa "r\${i}_0001.maf.gz" "r\${i}_0001.ref"
     done < ${truth}.fai
     """
