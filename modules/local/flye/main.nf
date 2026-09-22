@@ -21,8 +21,12 @@ process FLYE {
 
     script:
     def args = task.ext.args ?: ''
+    // ext.allow_no_assembly: reads too short or too few to overlap give an empty assembly_info.txt, not a failure.
+    def on_no_assembly = task.ext.allow_no_assembly
+        ? "|| { status=\$?; grep -qE 'No disjointigs were assembled|No reads above minimum length threshold' out/flye.log || exit \$status; touch out/assembly_info.txt; }"
+        : ''
     """
-    flye --pacbio-hifi ${reads} --threads ${task.cpus} --out-dir out ${args}
+    flye --pacbio-hifi ${reads} --threads ${task.cpus} --out-dir out ${args} ${on_no_assembly}
     # Only the files NORMALISE_HEADERS and the report need are kept.
     find out -mindepth 1 -maxdepth 1 ! -name assembly.fasta ! -name assembly_info.txt \\
         ! -name assembly_graph.gfa ! -name flye.log -exec rm -rf {} +
