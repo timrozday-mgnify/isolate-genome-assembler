@@ -30,8 +30,7 @@ nextflow run main.nf --input samples.yml --outdir results -profile slurm,singula
     --bakta_db /shared/databases/db-light \
     --busco_db /shared/databases/busco_downloads \
     --gtdbtk_db /shared/databases/gtdbtk_db \
-    --ideel_db /shared/databases/ideel_db.dmnd \
-    --publish_outputs
+    --ideel_db /shared/databases/ideel_db.dmnd
 ```
 
 Always use `-resume`, and run the head job inside `sbatch` or `tmux`.
@@ -63,7 +62,7 @@ Every parameter is declared with an explanatory comment in
 | `--assemblers` | seven tools | Comma list; also accepts `myloasm` and `lja` |
 | `--subsample_count` | `4` | Independent subsampled read sets per sample |
 | `--subsample_min_depth` | `25` | Minimum depth a subset may have |
-| `--publish_outputs` | `false` | Publication is opt-in; nothing is copied by default |
+| `--publish_outputs` | `true` | Copy process outputs to `--outdir`; `false` leaves them in `work/` |
 | `--publish_input_assemblies` | `false` | Also publish the per-subset input assemblies |
 | `--min_contig_len` | `1000` | Contigs shorter than this are flagged |
 | `--chromosome_min_len` | `1000000` | A contig this long is called a chromosome |
@@ -79,7 +78,7 @@ Every parameter is declared with an explanatory comment in
 
 ## Outputs
 
-With `--publish_outputs`, `reads/<id>/` holds `read_qc.tsv` and the per-tool measurements
+`reads/<id>/` holds `read_qc.tsv` and the per-tool measurements
 behind it (seqkit stats, NanoPlot, GC histogram, duplicates, adapters, GenomeScope2), and
 `contamination/<id>/` holds the sylph profile and taxonomy, the human query, the human read
 fraction and `contamination_summary.json`. `assemblies/<id>/` holds the selected assembly
