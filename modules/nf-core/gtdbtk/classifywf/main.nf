@@ -34,7 +34,8 @@ process GTDBTK_CLASSIFYWF {
     prefix              = task.ext.prefix ?: "${meta.id}"
     def pplacer_scratch = use_pplacer_scratch_dir ? "--scratch_dir pplacer_tmp" : ""
     """
-    export GTDBTK_DATA_PATH="\$(find -L ${db} -name 'metadata' -type d -exec dirname {} \\;)"
+    # Check the db root and one level down rather than find -L, which trips on symlink loops.
+    for d in ${db} ${db}/*/; do [ -d "\$d/metadata" ] && export GTDBTK_DATA_PATH="\${d%/}" && break; done
 
     if [ "${pplacer_scratch}" != "" ] ; then
         mkdir pplacer_tmp
@@ -55,7 +56,8 @@ process GTDBTK_CLASSIFYWF {
     stub:
     prefix = task.ext.prefix ?: "${meta.id}"
     """
-    export GTDBTK_DATA_PATH="\$(find -L ${db} -name 'metadata' -type d -exec dirname {} \\;)"
+    # Check the db root and one level down rather than find -L, which trips on symlink loops.
+    for d in ${db} ${db}/*/; do [ -d "\$d/metadata" ] && export GTDBTK_DATA_PATH="\${d%/}" && break; done
 
     mkdir ${prefix}
     mkdir ${prefix}/identify
