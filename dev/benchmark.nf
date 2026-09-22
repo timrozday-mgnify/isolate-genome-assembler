@@ -1,14 +1,19 @@
-// Phase 6 assembler benchmark. Three steps, run from a directory outside the repo:
+// Phase 6 assembler benchmark. Four steps, run from a directory outside the repo:
 //
 //   1. nextflow run <repo>/dev/benchmark.nf --mode simulate
 //        fetches the truth genomes in benchmark_genomes.tsv, simulates HiFi reads for the
 //        simulated ones (PBSIM3 CCS mode at --depths), downloads the real runs, and writes
 //        benchmark/samples.yml.
 //   2. the pipeline itself on benchmark/samples.yml, with every assembler and 6 subsets,
-//      publishing the input assemblies (see dev/assembler_benchmark.md for the command).
+//      publishing the input assemblies:
+//        nextflow run <repo>/main.nf --input benchmark/samples.yml --outdir results \
+//          --assemblers flye,hifiasm,raven,canu,miniasm,metamdbg,plassembler,myloasm,lja \
+//          --subsample_count 6 --publish_input_assemblies <database params>
 //   3. nextflow run <repo>/dev/benchmark.nf --mode consensus --results <pipeline outdir>
 //        reruns only Autocycler's consensus for each arm in benchmark_arms.tsv, on that
 //        arm's subset of the published input assemblies.
+//   4. uv run <repo>/dev/assembler_benchmark.py --benchmark benchmark --results <pipeline outdir>
+//        scores each arm against the truth genomes and writes dev/assembler_benchmark.{csv,md}.
 //
 // Arms share one set of input assemblies instead of rerunning the assemblers per arm, so
 // the arms differ only in what they choose to combine. Subsets 01-04 of a 6-subset run
