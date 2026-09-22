@@ -37,7 +37,9 @@ workflow FINISHING {
 
     // multiMap keeps the query and reference channels in lockstep, which a plain pair of
     // queue channels into SKANI_DIST would not guarantee once there is more than one sample.
+    // Plassembler leaves an empty FASTA when it finds no plasmids, which skani rejects.
     ch_skani_in = PLASSEMBLER_FULL.out.plasmids
+        .filter { _meta, plasmids -> plasmids.size() > 0 }
         .join(CLASSIFY_REPLICONS.out.assembly)
         .multiMap { meta, plasmids, assembly ->
             query: [meta, plasmids]
