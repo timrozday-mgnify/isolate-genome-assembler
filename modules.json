@@ -53,8 +53,7 @@
           "gtdbtk/classifywf": {
             "branch": "master",
             "git_sha": "b581ebb37c529fa07e22c38d128a7c5c273ed286",
-            "installed_by": ["modules"],
-            "patch": "modules/nf-core/gtdbtk/classifywf/gtdbtk-classifywf.diff"
+            "installed_by": ["modules"]
           },
           "merqury/merqury": {
             "branch": "master",

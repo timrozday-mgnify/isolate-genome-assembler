@@ -244,7 +244,7 @@ is weaker than usual here.
 | `checkm2_db` | CheckM2 DIAMOND db | ~3 GB |
 | `bakta_db` | Bakta **light** db (decided 2026-09-17; full db is ~70 GB and optional) | ~2 GB |
 | `busco_db` | offline `bacteria_odb12` / `archaea_odb12` (or `--auto-lineage-prok`) | ~1 GB |
-| `gtdbtk_db` | GTDB-Tk data for **r226** (pinned for sylph and GTDB-Tk alike) | ~110 GB |
+| `gtdbtk_db` | GTDB-Tk data for **r232** (GTDB-Tk 2.7+) | ~110 GB |
 | `ideel_db` | DIAMOND db of UniProt Swiss-Prot (default) or UniRef90 | 0.3 / 40 GB |
 
 Every database path is checked at start-up (`checkIfExists`). The version of each database
@@ -848,7 +848,7 @@ Results go in `dev/assembler_benchmark.{py,csv,md}`.
 | Canu dominates wall time | Can be turned off with `--assemblers`; Phase 6 measures whether it earns its cost |
 
 **Decisions (2026-09-17):**
-1. GTDB **r226** is pinned for both sylph and GTDB-Tk.
+1. GTDB **r226** for sylph; **r232** for GTDB-Tk 2.7+.
 2. Human reads are removed **only when detected** (`--remove_human auto`).
 3. Bakta uses the **light** database by default.
 4. **Per-sample reports** are rendered as well as the run report (`--per_sample_reports true`).
