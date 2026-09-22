@@ -41,7 +41,7 @@ Always use `-resume`, and run the head job inside `sbatch` or `tmux`.
 `--prepare_databases` downloads the sylph GTDB r226 database and its sylph-tax metadata,
 downloads CHM13 v2.0 and GRCh38, sketches those two into the human sylph database, runs
 `plassembler download`, fetches the CheckM2 database, the Bakta light database, the BUSCO
-`--busco_lineage` dataset and the GTDB-Tk r226 package (~110 GB unpacked), and builds a
+`--busco_lineage` dataset and the GTDB-Tk r232 package, and builds a
 DIAMOND database of UniProt Swiss-Prot for the IDEEL test. It writes everything to
 `--database_dir`. The ten paths above are then required whenever `--input` is given; the
 run stops before any task if one is missing.
