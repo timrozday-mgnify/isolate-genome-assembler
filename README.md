@@ -60,6 +60,7 @@ Every parameter is declared with an explanatory comment in
 | `--remove_human` | `auto` | `auto` removes human reads only when human is detected |
 | `--contam_max_human` | `0.001` | Human read fraction at which `auto` removes |
 | `--assemblers` | seven tools | Comma list; also accepts `myloasm` and `lja` |
+| `--full_read_assemblers` | `--assemblers` minus Plassembler | Assemblers also run on the whole read set, scored against each other and the consensus |
 | `--subsample_count` | `4` | Independent subsampled read sets per sample |
 | `--subsample_min_depth` | `25` | Minimum depth a subset may have |
 | `--publish_outputs` | `true` | Copy process outputs to `--outdir`; `false` leaves them in `work/` |
@@ -70,6 +71,10 @@ Every parameter is declared with an explanatory comment in
 | `--qc_thresholds` | `assets/qc_thresholds.yml` | Pass/warn/fail thresholds for every check |
 | `--coverage_low_ratio`, `--coverage_high_ratio` | `0.5`, `2.0` | Depth-window flags, relative to the contig median |
 | `--clip_min_reads`, `--clip_min_fraction`, `--clip_min_length` | `5`, `0.2`, `500` | What counts as a clipping pile-up |
+| `--circularise_min_identity` | `0.95` | Identity a contig's start-end self-match must reach before the duplicated span is cut |
+| `--score_size_tolerance`, `--score_min_qv` | `0.1`, `40` | How far a candidate assembly's length may sit from the genome size estimate, and the QV below which it is not a candidate |
+| `--assembly_selection` | `always_score` | `always_score` finishes the highest-scoring candidate, `score` keeps a resolved consensus, `flye` is the pre-scoring behaviour |
+| `--clip_extend_args` | `-z 5000,5000 --end-bonus 100` | minimap2 options for the permissive second alignment that separates a misjoin from a local difference |
 | `--variant_min_depth` | `10` | Minimum depth for the allele-frequency scan |
 | `--homopolymer_min_len` | `8` | Homopolymer indels at least this long are tallied separately |
 | `--ideel_min_ratio` | `0.9` | A protein below this fraction of its best hit is truncated |
@@ -84,7 +89,10 @@ behind it (seqkit stats, NanoPlot, GC histogram, duplicates, adapters, GenomeSco
 fraction and `contamination_summary.json`. `assemblies/<id>/` holds the selected assembly
 under `final/`, Autocycler's own `autocycler_out/` directory, the cluster dotplots,
 `assembly_attempts.tsv` and `assembly_source.tsv`, with the per-subset input assemblies
-behind `--publish_input_assemblies`. `checks/<id>/` holds every check's table (below),
+behind `--publish_input_assemblies`. `assemblies/<id>/full/` holds each assembler's
+whole-read-set assembly and `assemblies/<id>/scoring/` holds `full_assemblies.tsv`, which
+ranks them against each other and against the consensus, plus the per-candidate
+circularity tables. `checks/<id>/` holds every check's table (below),
 `annotation/<id>/` the Bakta annotation, and `qc/<id>.qc.json` the sample's verdict.
 `report/` holds the report (below). `pipeline_info/` always holds Nextflow's trace,
 timeline, report and DAG, and `software_versions.tsv`.
@@ -152,7 +160,7 @@ check writes a small table under `checks/<id>/`; none of them decides pass or fa
 |---|---|---|
 | Unmapped reads | minimap2 `map-hifi` | `mapping.tsv`; the unmapped reads are assembled with Flye, and a circular contig among them is a possible missing replicon |
 | Uneven depth | mosdepth, 1 kb windows | `coverage_regions.tsv` (low/high regions), `contig_depth.tsv` (depth relative to the chromosome) |
-| Candidate misjoins | pysam | `clipping.tsv`: places where many reads are clipped at once |
+| Candidate misjoins | minimap2, pysam | `clipping.tsv`: places where many reads are clipped at once. Each is re-measured in a second, permissive alignment (`--clip_extend_args`) that extends through what it can: `verdict` is `confirmed` when the pile-up survives that, `resolved` when the reads carry on matching and the clip marked a local difference. `tail_target` is where the clipped tails align instead, when they agree on a place: the join the assembly should have made. Tails that land nowhere are sequence missing from the assembly. Only `confirmed` pile-ups reach the QC gate |
 | Structural and small errors | Inspector | `summary_statistics`, error BEDs, QV |
 | Per-base accuracy | bcftools mpileup | `variants.tsv`: AF ≥ 0.5 (likely error) and 0.2–0.5 (mixed strain or collapsed repeat), homopolymer indels apart |
 | K-mer QV | meryl + Merqury | QV, completeness, spectra-cn plot |

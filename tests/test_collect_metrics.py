@@ -45,7 +45,7 @@ def test_status_board_takes_the_worst_measured_check(tmp_path: Path) -> None:
     assert board["iso_pass"]["plasmids"] == "2"
     assert board["iso_pass"]["total_length"] == "264000"
     assert board["iso_pass"]["all_circular"] == "true"
-    assert board["iso_fail"]["assembly_source"] == "fallback_flye"
+    assert board["iso_fail"]["assembly_source"] == "fallback_hifiasm"
 
 
 def test_non_tsv_inputs_are_parsed(tmp_path: Path) -> None:

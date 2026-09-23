@@ -65,9 +65,18 @@ def count_rows(path: Path | None, **where: str) -> int | None:
 
 
 def consensus_unresolved(path: Path | None) -> float | None:
+    """Did the consensus resolve? Not the same as whether it was the one delivered.
+
+    Under `--assembly_selection always_score` a resolved consensus can still lose to a
+    better-scoring single assembly, which is not a failure of the consensus, so the
+    verdict Autocycler wrote is read first and the source only stands in for it.
+    """
     rows = read_tsv(path)
     if not rows:
         return None
+    resolved = (rows[0].get("fully_resolved") or "").lower()
+    if resolved in ("true", "false"):
+        return 0.0 if resolved == "true" else 1.0
     return 0.0 if rows[0].get("assembly_source") == "autocycler" else 1.0
 
 
@@ -193,7 +202,8 @@ def measure(args: argparse.Namespace) -> dict[str, float | None]:
         "possible_missing_replicons": circular_flye_contigs(args.unmapped_assembly),
         "unmapped_read_fraction": first(args.mapping, "unmapped_read_fraction"),
         "coverage_regions": count_rows(args.coverage_regions),
-        "clipping_pileups": count_rows(args.clipping),
+        # Only the pile-ups a permissive re-alignment could not extend through.
+        "clipping_pileups": count_rows(args.clipping, verdict="confirmed"),
         "inspector_structural_errors": inspector_structural_errors(args.inspector),
         "variants_high_af": first(args.variants, "high_af"),
         "merqury_qv": merqury_qv(args.merqury),

@@ -201,6 +201,7 @@ merqury, merqury_completeness = table("merqury"), table("merqury_completeness")
 bakta, ideel, ideel_ratios, rrna = table("bakta"), table("ideel"), table("ideel_ratios"), table("rrna_depth")
 gtdbtk, reference_skani, checkm2, busco = table("gtdbtk"), table("reference_skani"), table("checkm2"), table("busco")
 plasmid_audit = table("plasmid_audit")
+full_assemblies = table("full_assemblies")
 
 
 def reads_tab(s: str) -> list[str]:
@@ -236,12 +237,34 @@ def assembly_tab(s: str) -> list[str]:
     source = of(assembly_source, s)
     parts = []
     if not source.empty and source.iloc[0]["assembly_source"] != "autocycler":
-        parts.append(f'<p><b>Fallback used:</b> {html.escape(str(source.iloc[0]["reason"]))}. The Flye assembly of all reads was finished instead of the Autocycler consensus.</p>')
+        chosen = str(source.iloc[0]["assembly_source"]).removeprefix("fallback_")
+        # A consensus that resolved and still lost on score is not a fallback; under
+        # --assembly_selection always_score that is an ordinary outcome.
+        resolved = str(source.iloc[0].get("fully_resolved", "")).lower() == "true"
+        label = "Chosen on score" if resolved else "Fallback used"
+        parts.append(f'<p><b>{label}:</b> {html.escape(str(source.iloc[0]["reason"]))}. The {html.escape(chosen)} assembly of all reads was finished instead of the Autocycler consensus.</p>')
     table_ = of(contigs, s)
     depth = of(contig_depth, s)
     if not depth.empty:
         table_ = table_.merge(depth[["contig", "median_depth", "depth_ratio"]], on="contig", how="left")
     parts += ["<h4>Contigs</h4>", html_table(table_) if not table_.empty else empty("No contigs.")]
+    full = of(full_assemblies, s)
+    if not full.empty:
+        parts += ["<h4>Full-read assemblies</h4>",
+                  '<p class="note">Every assembler run on the whole read set, trimmed the same way and scored '
+                  'reference-free. The consensus row has had Autocycler\'s <code>resolve</code> applied and the '
+                  'single assemblies structurally cannot, so it is not a like-for-like comparison; confirmed '
+                  'clipping pile-ups, the first thing ranked on, are the handicap for exactly the joins '
+                  '<code>resolve</code> would have made.</p>',
+                  html_table(full)]
+        shape = full.melt(id_vars="assembler", value_vars=["contigs", "circular_contigs", "merqury_qv"],
+                          var_name="metric", value_name="value").dropna(subset=["value"])
+        if not shape.empty:
+            fig = px.bar(shape, x="assembler", y="value", color="metric", barmode="group",
+                         facet_row="metric", height=420)
+            fig.update_yaxes(matches=None, showticklabels=True)
+            fig.update_layout(title="Candidate assemblies, by contigs, circular contigs and QV", showlegend=False)
+            parts.append(figure(fig))
     parts += ["<h4>Consensus graph (Bandage)</h4>", image(s, "bandage")]
     parts += ["<h4>Autocycler</h4>", vertical(of(autocycler, s)) or empty("No Autocycler metrics.")]
     contrib = of(contribution, s)

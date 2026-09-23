@@ -1,9 +1,10 @@
 # isolate-genome-assembler: implementation plan
 
-Status: Phase 5 complete, 2026-09-21. All eight stages (read QC, contamination screen,
+Status: Phase 7 implemented, 2026-09-23. All eight stages (read QC, contamination screen,
 assembly, consensus, finishing, the stage 6 checks, `qc_gates.py` and the Quarto report) are
-implemented and covered by stub, unit and render tests; the real validation runs of
-Phases 1–5 are still outstanding (see each phase below). Phase 6's benchmark harness is
+implemented and covered by stub, unit and render tests, and Phase 7 adds the full-read
+assemblies, their scoring and score-based selection; the real validation runs of
+Phases 1–5 and 7 are still outstanding (see each phase below). Phase 6's benchmark harness is
 in place and waiting on its HPC runs. Open decisions are resolved
 ([Decisions](#risks-and-open-questions)). Phases are listed at the end ([Phases](#phases)).
 Update this header as each phase lands, the same way `superresolution-amplicon/docs/*_plan.md`
@@ -329,8 +330,9 @@ See [Design decision 4](#4-contamination-screen-sylph-against-gtdb--human). Outp
 `combine --reads` (reads give real depths in the headers) → `table`.
 
 The process also runs `autocycler dotplot` on each cluster for the report. `SELECT_ASSEMBLY`
-(script) picks the Autocycler consensus if fully resolved, and the fallback Flye assembly
-otherwise, and writes `assembly_source` into the sample's metrics.
+(script, run in `SCORING` because it needs the scores) picks between the consensus and the
+scored full-read assemblies as `--assembly_selection` says, and writes `assembly_source`
+into the sample's metrics.
 
 ### 5. Finishing
 
@@ -538,7 +540,8 @@ results/
 ├── assemblies/<id>/
 │   ├── inputs/            <assembler>_<subset>.fasta (+ .gfa, .log)   [--publish_input_assemblies]
 │   ├── autocycler_out/    full directory (re-entry point for manual curation)
-│   ├── flye_full/         fallback assembly
+│   ├── full/              <assembler>_full.fasta, one per --full_read_assemblers
+│   ├── scoring/           full_assemblies.tsv, per-candidate circularity + trimmed FASTA
 │   ├── plassembler_full/  plasmid audit
 │   └── final/             <id>.fasta, <id>.gfa, <id>.contigs.tsv, <id>.removed_contigs.fasta
 ├── annotation/<id>/       bakta/
@@ -688,7 +691,7 @@ results/
     them would save compute at the cost of the diagnosis. Revisit if Phase 6 shows the
     cost matters.
   - **Bandage draws the consensus graph only,** fallback or not. An unresolved consensus
-    graph is what explains a fallback, and the Flye graph is published under `flye_full/`.
+    graph is what explains a fallback, and the Flye graph is published under `full/`.
   - **The minimap2 dotplot against the reference moves to Phase 5**, where the report
     draws it; skani against the reference runs here.
   - **Thresholds reach `qc_gates.py` as JSON.** The workflow reads the YAML with snakeyaml
@@ -822,7 +825,29 @@ Results go in `dev/assembler_benchmark.{py,csv,md}`.
     4. `uv run <repo>/dev/assembler_benchmark.py --benchmark benchmark --results results`
        writes `dev/assembler_benchmark.{csv,md}`.
 
-### Phase 7: release
+### Phase 7: full-read assemblies and assembly scoring
+- Run every enabled assembler on the full read set, score each assembly reference-free,
+  and fall back to the best one rather than always to Flye. Report and benchmark the
+  comparison.
+- Full detail, including the scoring rule and the three delivery steps:
+  [full_read_assemblies_plan.md](full_read_assemblies_plan.md).
+- **Done when:** the stub tests pass, `full_assemblies.tsv` renders in the report, and a
+  Phase 6 benchmark arm shows whether the consensus beats the best single assembler.
+- **Landed 2026-09-23 (all four steps).** `CONTIG_ENDS` no longer overlaps its own two windows;
+  every assembler bar Plassembler assembles the full read set; and `SCORING` trims each
+  candidate with `CIRCULARISE`, measures it from checks that already exist and ranks the
+  lot into `full_assemblies.tsv`, which the report renders. `MERYL_COUNT` moved to
+  `SCORING` so the k-mer database is counted once and shared with `CHECKS`.
+  `SELECT_ASSEMBLY` moved into `SCORING`, because selection now needs the scores, and
+  `--assembly_selection` (default `always_score`) decides between the consensus and the
+  best-scoring full-read assembly; a fallback is labelled `fallback_<assembler>`. The
+  `consensus_unresolved` gate now reads Autocycler's own verdict rather than inferring it
+  from the source, since `always_score` can pass over a consensus that resolved.
+  **Still outstanding:** the real evidence, which is the Phase 6 benchmark run --
+  `assembler_benchmark.py` now scores every full-read assembly against truth and tabulates
+  consensus vs best single assembler.
+
+### Phase 8: release
 - README complete (Parameters, Outputs, Checks and gates, HPC, Databases).
 - Tag `v0.1.0`, image tag pinned in `nextflow.config`.
 

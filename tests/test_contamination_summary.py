@@ -18,7 +18,11 @@ KLEBSIELLA = "d__Bacteria|p__Pseudomonadota|c__Gammaproteobacteria|o__Enterobact
 
 def write_tax(tmp_path: Path, rows: list[tuple[str, float, float]]) -> Path:
     path = tmp_path / "tax.tsv"
-    lines = ["clade_name\trelative_abundance\tsequence_abundance"]
+    # sylph-tax emits a `#SampleID` line above the header; keep it so the parser stays honest.
+    lines = [
+        "#SampleID\tsample.fastq.gz\tTaxonomies_used:['gtdb_r226_metadata.tsv.gz']",
+        "clade_name\trelative_abundance\tsequence_abundance",
+    ]
     lines += [f"{clade}\t{relative}\t{sequence}" for clade, relative, sequence in rows]
     path.write_text("\n".join(lines) + "\n")
     return path

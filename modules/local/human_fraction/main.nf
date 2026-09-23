@@ -25,7 +25,7 @@ process HUMAN_FRACTION {
     total=\$(seqkit stats --tabular ${reads} | awk 'NR == 2 { print \$4 }')
     human=\$(wc -l < ${meta.id}.human_read_ids.txt)
     printf 'reads\\thuman_reads\\thuman_fraction\\n%s\\t%s\\t%s\\n' \\
-        "\$total" "\$human" "\$(awk -v h="\$human" -v t="\$total" 'BEGIN { print t > 0 ? h / t : 0 }')" \\
+        "\$total" "\$human" "\$(awk -v h="\$human" -v t="\$total" 'BEGIN { print (t > 0 ? h / t : 0) }')" \\
         > ${meta.id}.human_fraction.tsv
     """
 

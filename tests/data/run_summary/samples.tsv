@@ -1,4 +1,4 @@
 sample	status	depth	species	chromosomes	plasmids	all_circular	total_length	merqury_qv	checkm2_completeness	checkm2_contamination	assembly_source
-iso_fail	fail	80.0	s__Escherichia coli	1	0	true	200000	38.0	97.0	22.5	fallback_flye
+iso_fail	fail	80.0	s__Escherichia coli	1	0	true	200000	38.0	97.0	22.5	fallback_hifiasm
 iso_pass	pass	120.0	s__Escherichia coli	1	2	true	264000	62.1	99.9	0.2	autocycler
 iso_warn	warn	45.0	s__Escherichia coli	1	1	true	290000	55.3	99.5	0.6	autocycler

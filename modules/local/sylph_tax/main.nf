@@ -31,6 +31,6 @@ process SYLPH_TAX {
 
     stub:
     """
-    printf 'clade_name\\trelative_abundance\\tsequence_abundance\\nd__Bacteria|p__Pseudomonadota|c__Gammaproteobacteria|o__Enterobacterales|f__Enterobacteriaceae|g__Escherichia|s__Escherichia coli\\t100.0\\t100.0\\n' > ${meta.id}.sylph_tax.tsv
+    printf '#SampleID\\tstub.fastq.gz\\tTaxonomies_used:[]\\nclade_name\\trelative_abundance\\tsequence_abundance\\nd__Bacteria|p__Pseudomonadota|c__Gammaproteobacteria|o__Enterobacterales|f__Enterobacteriaceae|g__Escherichia|s__Escherichia coli\\t100.0\\t100.0\\n' > ${meta.id}.sylph_tax.tsv
     """
 }
