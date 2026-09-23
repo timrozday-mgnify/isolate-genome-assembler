@@ -27,9 +27,18 @@ def paf_line(
     return "\t".join(
         str(field)
         for field in [
-            f"{contig}_start", window, qstart, qend, strand,
-            f"{contig}_end", window, tstart, tend,
-            int(block * identity), block, 60,
+            f"{contig}_start",
+            window,
+            qstart,
+            qend,
+            strand,
+            f"{contig}_end",
+            window,
+            tstart,
+            tend,
+            int(block * identity),
+            block,
+            60,
         ]
     )
 
@@ -37,14 +46,27 @@ def paf_line(
 def run(tmp_path: Path, sequence: str, *records: str) -> tuple[str, dict[str, str]]:
     """Run the script over one contig and read back the FASTA and its table row."""
     assembly = tmp_path / "in.fasta"
-    assembly.write_text(f">c1 length={len(sequence)} depth=30.0 circular=true\n{sequence}\n")
+    assembly.write_text(
+        f">c1 length={len(sequence)} depth=30.0 circular=true\n{sequence}\n"
+    )
     paf = tmp_path / "ends.paf"
     paf.write_text("".join(f"{record}\n" for record in records))
     output, table = tmp_path / "out.fasta", tmp_path / "circularity.tsv"
-    assert circularise.main([
-        "--assembly", str(assembly), "--overlaps", str(paf),
-        "--output", str(output), "--table", str(table),
-    ]) == 0
+    assert (
+        circularise.main(
+            [
+                "--assembly",
+                str(assembly),
+                "--overlaps",
+                str(paf),
+                "--output",
+                str(output),
+                "--table",
+                str(table),
+            ]
+        )
+        == 0
+    )
     rows = list(csv.DictReader(table.read_text().splitlines(), delimiter="\t"))
     return output.read_text(), rows[0]
 
@@ -77,7 +99,9 @@ def test_identity_below_the_threshold_is_left_alone(tmp_path: Path) -> None:
     assert row["flag"] == ""
 
 
-def test_a_match_starting_inside_the_contig_is_an_internal_repeat(tmp_path: Path) -> None:
+def test_a_match_starting_inside_the_contig_is_an_internal_repeat(
+    tmp_path: Path,
+) -> None:
     seq = sequence(5000)
     fasta, row = run(tmp_path, seq, paf_line("c1", 400, 700, WINDOW - 300, WINDOW))
     assert fasta.splitlines()[1] == seq
@@ -85,7 +109,9 @@ def test_a_match_starting_inside_the_contig_is_an_internal_repeat(tmp_path: Path
     assert row["circular"] == "false"
 
 
-def test_a_match_stopping_short_of_the_end_is_an_internal_repeat(tmp_path: Path) -> None:
+def test_a_match_stopping_short_of_the_end_is_an_internal_repeat(
+    tmp_path: Path,
+) -> None:
     seq = sequence(5000)
     fasta, row = run(tmp_path, seq, paf_line("c1", 0, 300, 200, 500))
     assert fasta.splitlines()[1] == seq
@@ -110,7 +136,9 @@ def test_a_window_filling_match_is_flagged_and_not_trimmed(tmp_path: Path) -> No
     assert row["circular"] == "false"
 
 
-def test_a_short_contig_with_halved_windows_gives_no_spurious_wrap(tmp_path: Path) -> None:
+def test_a_short_contig_with_halved_windows_gives_no_spurious_wrap(
+    tmp_path: Path,
+) -> None:
     # CONTIG_ENDS halves the window on a contig shorter than 2 * window, so the two
     # windows are disjoint and a short contig no longer self-aligns for free.
     seq = sequence(900)

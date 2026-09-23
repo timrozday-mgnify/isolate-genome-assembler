@@ -8,12 +8,20 @@ import re
 import subprocess
 from pathlib import Path
 
-MODULE = Path(__file__).resolve().parents[1] / "modules" / "local" / "contig_ends" / "main.nf"
+MODULE = (
+    Path(__file__).resolve().parents[1]
+    / "modules"
+    / "local"
+    / "contig_ends"
+    / "main.nf"
+)
 
 
 def awk_program() -> str:
     """The awk program from the module, with Nextflow's escaping undone."""
-    body = re.search(r"awk -v window=\S+ '(.*?)' \$\{assembly\}", MODULE.read_text(), re.S)
+    body = re.search(
+        r"awk -v window=\S+ '(.*?)' \$\{assembly\}", MODULE.read_text(), re.S
+    )
     assert body, "the awk program moved; update this test"
     return body.group(1).replace("\\$", "$").replace("\\\\n", "\\n")
 
@@ -26,7 +34,9 @@ def ends(tmp_path: Path, window: int, **contigs: str) -> dict[str, str]:
     fasta.write_text("".join(f">{name}\n{seq}\n" for name, seq in contigs.items()))
     out = subprocess.run(
         ["awk", "-v", f"window={window}", "-f", str(program), str(fasta)],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.splitlines()
     return dict(zip([line[1:] for line in out[::2]], out[1::2]))
 

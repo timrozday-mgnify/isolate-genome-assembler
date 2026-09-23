@@ -287,7 +287,9 @@ def sample_inputs(
                 for rank, (assembler, contigs, circular, clipping, qv) in enumerate(
                     scored if s["resolved"] else scored[1:], start=1
                 )
-                for total in [CHROMOSOME + sum(length for _, length, _ in s["plasmids"])]
+                for total in [
+                    CHROMOSOME + sum(length for _, length, _ in s["plasmids"])
+                ]
             ],
         ),
     )

@@ -119,9 +119,7 @@ def wraps(paf: Path, min_identity: float) -> dict[str, Wrap]:
 def retag(header: str, length: int, circular: bool) -> str:
     """Rewrite the length and circularity tags a normalised header carries."""
     parts = [
-        part
-        for part in header.split()
-        if not part.startswith(("length=", "circular="))
+        part for part in header.split() if not part.startswith(("length=", "circular="))
     ]
     parts.insert(1, f"length={length}")
     parts.append(f"circular={'true' if circular else 'false'}")
@@ -161,7 +159,9 @@ def circularise(
                 row["overlap"] = wrap.overlap
                 row["length_after"] = len(sequence)
                 row["circular"] = "true"
-        trimmed.append((retag(header, len(sequence), row["circular"] == "true"), sequence))
+        trimmed.append(
+            (retag(header, len(sequence), row["circular"] == "true"), sequence)
+        )
         rows.append(row)
     return trimmed, rows
 

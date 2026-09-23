@@ -24,18 +24,21 @@ def candidate(
     clipping: int = 0,
 ) -> None:
     """Write one candidate's check outputs, as the per-candidate processes name them."""
+
     def write(directory: str, suffix: str, text: str) -> None:
         folder = tmp_path / directory
         folder.mkdir(exist_ok=True)
         (folder / f"{SAMPLE}.{assembler}{suffix}").write_text(text)
 
     write(
-        "stats", ".tsv",
+        "stats",
+        ".tsv",
         "file\tformat\ttype\tnum_seqs\tsum_len\tN50\n"
         f"x\tFASTA\tDNA\t{contigs}\t{total_length}\t{total_length}\n",
     )
     write(
-        "circularity", ".circularity.tsv",
+        "circularity",
+        ".circularity.tsv",
         "contig\tlength_before\toverlap\tlength_after\tidentity\tcircular\tflag\n"
         + "".join(
             f"c{i}\t1\t0\t1\t\t{'true' if i <= circular else 'false'}\t\n"
@@ -45,12 +48,14 @@ def candidate(
     write("qv", ".qv", f"asm\t1\t2\t{qv}\t0.0001\n")
     write("completeness", ".completeness.stats", f"asm\tall\t1\t2\t{completeness}\n")
     write(
-        "mapping", ".mapping.tsv",
+        "mapping",
+        ".mapping.tsv",
         "sample\treads\tunmapped_reads\tunmapped_read_fraction\n"
         f"{SAMPLE}\t100\t1\t0.01\n",
     )
     write(
-        "clipping", ".clipping.tsv",
+        "clipping",
+        ".clipping.tsv",
         "sample\tcontig\tverdict\n"
         + "".join(f"{SAMPLE}\tc1\tconfirmed\n" for _ in range(clipping)),
     )
@@ -59,7 +64,14 @@ def candidate(
 def run(tmp_path: Path, **options: object) -> list[dict[str, str]]:
     """Score whatever candidates have been written, and read back the table."""
     output = tmp_path / "scores.tsv"
-    argv = ["--sample", SAMPLE, "--genome-size", str(GENOME_SIZE), "--output", str(output)]
+    argv = [
+        "--sample",
+        SAMPLE,
+        "--genome-size",
+        str(GENOME_SIZE),
+        "--output",
+        str(output),
+    ]
     for name in ["stats", "circularity", "qv", "completeness", "mapping", "clipping"]:
         argv += [f"--{name}", str(tmp_path / name)]
     for name, value in options.items():
@@ -96,7 +108,9 @@ def test_plassembler_is_never_a_candidate(tmp_path: Path) -> None:
     assert winner(rows.values()) == "flye"
 
 
-def test_a_filtered_candidate_still_wins_when_nothing_else_survives(tmp_path: Path) -> None:
+def test_a_filtered_candidate_still_wins_when_nothing_else_survives(
+    tmp_path: Path,
+) -> None:
     candidate(tmp_path, "flye", qv=20.0)
     assert winner(run(tmp_path)) == "flye"
 

@@ -100,7 +100,9 @@ def select(
     """Return the assembly to use, its source label, and why it was chosen."""
     candidates = candidates or {}
     resolved = fully_resolved(metrics)
-    consensus_usable = bool(resolved) and consensus is not None and has_sequence(consensus)
+    consensus_usable = (
+        bool(resolved) and consensus is not None and has_sequence(consensus)
+    )
 
     if selection == "always_score":
         # The consensus competes like any other candidate -- but only when Autocycler
@@ -110,16 +112,24 @@ def select(
         if winner is not None:
             assembler, row = winner
             if assembler == CONSENSUS:
-                return candidates[assembler], "autocycler", (
-                    f"highest-scoring assembly ({evidence(row)}); "
-                    "the consensus also resolved"
-                    if resolved
-                    else f"highest-scoring assembly ({evidence(row)})"
+                return (
+                    candidates[assembler],
+                    "autocycler",
+                    (
+                        f"highest-scoring assembly ({evidence(row)}); "
+                        "the consensus also resolved"
+                        if resolved
+                        else f"highest-scoring assembly ({evidence(row)})"
+                    ),
                 )
-            return candidates[assembler], f"fallback_{assembler}", (
-                f"{assembler} scored above the consensus ({evidence(row)}); "
-                "the consensus has had autocycler resolve applied and a single assembly "
-                "cannot, so the comparison is not like for like"
+            return (
+                candidates[assembler],
+                f"fallback_{assembler}",
+                (
+                    f"{assembler} scored above the consensus ({evidence(row)}); "
+                    "the consensus has had autocycler resolve applied and a single assembly "
+                    "cannot, so the comparison is not like for like"
+                ),
             )
 
     if consensus_usable:
@@ -136,8 +146,10 @@ def select(
         winner = best(candidates, scores, allow_consensus=False)
         if winner is not None:
             assembler, row = winner
-            return candidates[assembler], f"fallback_{assembler}", (
-                f"{reason}; best full-read assembly: {assembler} ({evidence(row)})"
+            return (
+                candidates[assembler],
+                f"fallback_{assembler}",
+                (f"{reason}; best full-read assembly: {assembler} ({evidence(row)})"),
             )
 
     if fallback is not None and has_sequence(fallback):
@@ -184,9 +196,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    candidates = dict(
-        entry.split("=", 1) for entry in args.candidates if "=" in entry
-    )
+    candidates = dict(entry.split("=", 1) for entry in args.candidates if "=" in entry)
     chosen, source, reason = select(
         args.consensus,
         args.metrics,

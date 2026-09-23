@@ -151,7 +151,9 @@ def arm_cost(
     return cpu, max(chains.values(), default=0.0) + consensus_wall
 
 
-def full_costs(trace: list[dict[str, str]], sample: str) -> dict[str, tuple[float, float]]:
+def full_costs(
+    trace: list[dict[str, str]], sample: str
+) -> dict[str, tuple[float, float]]:
     """CPU-hours and wall hours of each assembler's full-read run on one sample."""
     costs: dict[str, list[float]] = defaultdict(lambda: [0.0, 0.0])
     for row in trace:
@@ -275,9 +277,7 @@ def score(args: argparse.Namespace) -> list[dict]:
         sample_id = sample["id"]
         truth_path = args.benchmark / sample["reference"]
         truth = read_fasta(truth_path)
-        fallback = (
-            args.results / "assemblies" / sample_id / "full" / "flye_full.fasta"
-        )
+        fallback = args.results / "assemblies" / sample_id / "full" / "flye_full.fasta"
         deliveries: list[tuple[str, Path, tuple[dict, bool] | None]] = [
             (
                 "pipeline",
@@ -448,13 +448,12 @@ def write_markdown(
             "cannot have it, which is the asymmetry the comparison below carries.",
             "",
         ]
-        lines += markdown_table(
-            header, [arm_summary(rows, arm) for arm in full_arms]
-        )
+        lines += markdown_table(header, [arm_summary(rows, arm) for arm in full_arms])
 
         lines += ["## Consensus vs the best single assembler", ""]
         comparison = []
         for sample in sorted({r["sample"] for r in rows}):
+
             def scored(arm: str) -> tuple[int, int, int]:
                 """Replicons recovered, of how many, and their summed edit distance."""
                 replicons = [

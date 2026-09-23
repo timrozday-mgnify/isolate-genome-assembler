@@ -117,7 +117,9 @@ def test_the_fallback_assembly_counts_as_unresolved(tmp_path: Path) -> None:
     assert qc_gates.consensus_unresolved(source) == 0.0
 
 
-def test_a_resolved_consensus_that_lost_on_score_is_not_unresolved(tmp_path: Path) -> None:
+def test_a_resolved_consensus_that_lost_on_score_is_not_unresolved(
+    tmp_path: Path,
+) -> None:
     # always_score can deliver a better-scoring single assembly over a consensus that
     # resolved perfectly well; the gate measures the consensus, not the choice.
     source = write(

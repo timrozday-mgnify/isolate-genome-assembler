@@ -131,8 +131,10 @@ def test_the_top_ranked_candidate_wins_under_always_score(tmp_path: Path) -> Non
     consensus = write(tmp_path / "consensus.fasta", ">cluster_1\nACGT\n")
     assembly, summary = run_with(
         tmp_path,
-        "--selection", "always_score",
-        "--candidates", *candidates(tmp_path, hifiasm="GGGG", autocycler="ACGT"),
+        "--selection",
+        "always_score",
+        "--candidates",
+        *candidates(tmp_path, hifiasm="GGGG", autocycler="ACGT"),
         consensus=consensus,
         metrics=metrics,
         scores=scores(tmp_path, "hifiasm", "autocycler"),
@@ -150,8 +152,10 @@ def test_a_resolved_consensus_that_scores_best_keeps_its_label(tmp_path: Path) -
     consensus = write(tmp_path / "consensus.fasta", ">cluster_1\nACGT\n")
     _, summary = run_with(
         tmp_path,
-        "--selection", "always_score",
-        "--candidates", *candidates(tmp_path, autocycler="ACGT", hifiasm="GGGG"),
+        "--selection",
+        "always_score",
+        "--candidates",
+        *candidates(tmp_path, autocycler="ACGT", hifiasm="GGGG"),
         consensus=consensus,
         metrics=metrics,
         scores=scores(tmp_path, "autocycler", "hifiasm"),
@@ -159,7 +163,9 @@ def test_a_resolved_consensus_that_scores_best_keeps_its_label(tmp_path: Path) -
     assert summary.splitlines()[1].split("\t")[1] == "autocycler"
 
 
-def test_an_unresolved_consensus_takes_the_best_full_read_assembly(tmp_path: Path) -> None:
+def test_an_unresolved_consensus_takes_the_best_full_read_assembly(
+    tmp_path: Path,
+) -> None:
     metrics = write(
         tmp_path / "consensus.yaml", "consensus_assembly_fully_resolved: false\n"
     )
@@ -167,8 +173,10 @@ def test_an_unresolved_consensus_takes_the_best_full_read_assembly(tmp_path: Pat
     fallback = write(tmp_path / "flye.fasta", ">flye_full_1\nAAAA\n")
     assembly, summary = run_with(
         tmp_path,
-        "--selection", "score",
-        "--candidates", *candidates(tmp_path, autocycler="ACGT", raven="TTTT"),
+        "--selection",
+        "score",
+        "--candidates",
+        *candidates(tmp_path, autocycler="ACGT", raven="TTTT"),
         consensus=consensus,
         metrics=metrics,
         fallback=fallback,
@@ -188,8 +196,10 @@ def test_selection_flye_ignores_the_scores_entirely(tmp_path: Path) -> None:
     fallback = write(tmp_path / "flye.fasta", ">flye_full_1\nAAAA\n")
     assembly, summary = run_with(
         tmp_path,
-        "--selection", "flye",
-        "--candidates", *candidates(tmp_path, hifiasm="GGGG"),
+        "--selection",
+        "flye",
+        "--candidates",
+        *candidates(tmp_path, hifiasm="GGGG"),
         metrics=metrics,
         fallback=fallback,
         scores=scores(tmp_path, "hifiasm"),
@@ -217,8 +227,11 @@ def test_a_scored_candidate_whose_file_is_empty_is_skipped(tmp_path: Path) -> No
     empty = write(tmp_path / "hifiasm.fasta", "")
     assembly, summary = run_with(
         tmp_path,
-        "--selection", "always_score",
-        "--candidates", f"hifiasm={empty}", *candidates(tmp_path, raven="TTTT"),
+        "--selection",
+        "always_score",
+        "--candidates",
+        f"hifiasm={empty}",
+        *candidates(tmp_path, raven="TTTT"),
         metrics=metrics,
         scores=scores(tmp_path, "hifiasm", "raven"),
     )
@@ -235,8 +248,10 @@ def test_an_unresolved_consensus_does_not_win_on_score(tmp_path: Path) -> None:
     consensus = write(tmp_path / "consensus.fasta", ">cluster_1\nACGT\n")
     assembly, summary = run_with(
         tmp_path,
-        "--selection", "always_score",
-        "--candidates", *candidates(tmp_path, autocycler="ACGT", raven="TTTT"),
+        "--selection",
+        "always_score",
+        "--candidates",
+        *candidates(tmp_path, autocycler="ACGT", raven="TTTT"),
         consensus=consensus,
         metrics=metrics,
         scores=scores(tmp_path, "autocycler", "raven"),

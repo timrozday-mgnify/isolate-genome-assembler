@@ -128,9 +128,7 @@ def measure(
     }
 
 
-def filter_reason(
-    row: dict[str, object], size_tolerance: float, min_qv: float
-) -> str:
+def filter_reason(row: dict[str, object], size_tolerance: float, min_qv: float) -> str:
     """Why this candidate cannot be selected, or an empty string when it can."""
     if row["assembler"] in EXCLUDED:
         return EXCLUDED[row["assembler"]]
@@ -207,15 +205,31 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     found = {
         name: by_assembler(getattr(args, name), args.sample)
-        for name in ["stats", "circularity", "qv", "completeness", "mapping", "clipping"]
+        for name in [
+            "stats",
+            "circularity",
+            "qv",
+            "completeness",
+            "mapping",
+            "clipping",
+        ]
     }
     assemblers = sorted({a for files in found.values() for a in files})
     candidates = [
         measure(
             assembler,
             args.sample,
-            *[found[name].get(assembler) for name in
-              ["stats", "circularity", "qv", "completeness", "mapping", "clipping"]],
+            *[
+                found[name].get(assembler)
+                for name in [
+                    "stats",
+                    "circularity",
+                    "qv",
+                    "completeness",
+                    "mapping",
+                    "clipping",
+                ]
+            ],
             genome_size=args.genome_size,
         )
         for assembler in assemblers

@@ -123,9 +123,7 @@ def add_tails(
     is the commonest such place and ``tail_agree`` how many of them landed there.
     """
     wanted = {
-        name
-        for row in pileups
-        for name in clips[(row["contig"], row["start"] // BIN)]
+        name for row in pileups for name in clips[(row["contig"], row["start"] // BIN)]
     }
     placements: dict[str, list[tuple[str, int]]] = defaultdict(list)
     if wanted:
@@ -146,15 +144,12 @@ def add_tails(
             elsewhere = {
                 (contig, position // TAIL_MARGIN)
                 for contig, position in placements[name]
-                if contig != row["contig"]
-                or abs(position - row["start"]) > TAIL_MARGIN
+                if contig != row["contig"] or abs(position - row["start"]) > TAIL_MARGIN
             }
             landed += bool(elsewhere)
             targets.update(elsewhere)
         row["tail_reads"] = landed
-        (contig, block), agree = (
-            targets.most_common(1)[0] if targets else (("", 0), 0)
-        )
+        (contig, block), agree = targets.most_common(1)[0] if targets else (("", 0), 0)
         row["tail_target"] = f"{contig}:{block * TAIL_MARGIN}" if contig else ""
         row["tail_agree"] = agree
 
@@ -248,7 +243,8 @@ def main(argv: list[str] | None = None) -> int:
     confirmed = sum(row["verdict"] == "confirmed" for row in pileups)
     if pileups:
         print(
-            f"{len(pileups)} clipping pile-up(s), {confirmed} confirmed", file=sys.stderr
+            f"{len(pileups)} clipping pile-up(s), {confirmed} confirmed",
+            file=sys.stderr,
         )
     return 0
 
