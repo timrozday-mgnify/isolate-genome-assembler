@@ -21,7 +21,9 @@ def read_tsv(path: Path | None) -> list[dict[str, str]]:
     if path is None or not path.exists() or path.stat().st_size == 0:
         return []
     with path.open() as handle:
-        return list(csv.DictReader(handle, delimiter="\t"))
+        # sylph-tax prefixes its .sylphmpa with a `#SampleID` line before the real header.
+        rows = (line for line in handle if not line.startswith("#"))
+        return list(csv.DictReader(rows, delimiter="\t"))
 
 
 def number(value: object, default: float = 0.0) -> float:
