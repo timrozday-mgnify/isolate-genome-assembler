@@ -101,9 +101,12 @@ workflow ISOLATE_GENOME_ASSEMBLER {
             QC_GATES.out.qc.map { meta, f -> [meta, 'qc', f] },
             READ_QC.out.gc_hist.map { meta, f -> [meta, 'gc-hist', f] },
             READ_QC.out.genomescope.flatMap { meta, fs ->
-                (fs instanceof List ? fs : [fs]).findAll { it.name.endsWith('linear_plot.png') }.collect { f -> [meta, 'image-genomescope', f] }
+                (fs instanceof List ? fs : [fs]).findAll { it.name.endsWith('_linear_plot.png') && !it.name.contains('transformed') }.collect { f -> [meta, 'image-genomescope', f] }
             },
             ASSEMBLY.out.attempts.map { meta, f -> [meta, 'assembly-attempts', f] },
+            ASSEMBLY.out.cluster_dotplots.flatMap { meta, fs ->
+                (fs instanceof List ? fs : [fs]).collect { f -> [meta, 'image-dotplot', f] }
+            },
             ASSEMBLY.out.autocycler_table.map { meta, f -> [meta, 'autocycler', f] },
             SCORING.out.scores.map { meta, f -> [meta, 'full-assemblies', f] },
             CHECKS.out.report,

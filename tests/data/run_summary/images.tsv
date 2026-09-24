@@ -1,4 +1,10 @@
 sample	kind	path
 iso_pass	bandage	images/iso_pass.bandage.png
+iso_pass	dotplot	images/iso_pass.dotplot.png
+iso_pass	dotplot	images/iso_pass.dotplot_2.png
+iso_pass	dotplot	images/iso_pass.dotplot_3.png
 iso_warn	bandage	images/iso_warn.bandage.png
+iso_warn	dotplot	images/iso_warn.dotplot.png
+iso_warn	dotplot	images/iso_warn.dotplot_2.png
 iso_fail	bandage	images/iso_fail.bandage.png
+iso_fail	dotplot	images/iso_fail.dotplot.png

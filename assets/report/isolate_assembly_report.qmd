@@ -67,7 +67,11 @@ def image(sample_id: str, kind: str) -> str:
     rows = images[(images["sample"] == sample_id) & (images["kind"] == kind)]
     if rows.empty:
         return '<p class="note">No image.</p>'
-    data = base64.b64encode((SUMMARY / rows.iloc[0]["path"]).read_bytes()).decode()
+    return "".join(embedded(sample_id, kind, row["path"]) for _, row in rows.iterrows())
+
+
+def embedded(sample_id: str, kind: str, path: str) -> str:
+    data = base64.b64encode((SUMMARY / path).read_bytes()).decode()
     return f'<img class="report-image" alt="{kind} for {sample_id}" src="data:image/png;base64,{data}">'
 
 
@@ -266,6 +270,8 @@ def assembly_tab(s: str) -> list[str]:
             fig.update_layout(title="Candidate assemblies, by contigs, circular contigs and QV", showlegend=False)
             parts.append(figure(fig))
     parts += ["<h4>Consensus graph (Bandage)</h4>", image(s, "bandage")]
+    # One per QC-pass cluster: an all-vs-all dotplot of the unitigs that were combined.
+    parts += ["<h4>Cluster dotplots (Autocycler)</h4>", image(s, "dotplot")]
     parts += ["<h4>Autocycler</h4>", vertical(of(autocycler, s)) or empty("No Autocycler metrics.")]
     contrib = of(contribution, s)
     if not contrib.empty:

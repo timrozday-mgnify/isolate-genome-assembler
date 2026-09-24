@@ -737,6 +737,15 @@ results/
     to the topic: they wait for it to close, so writing to it would deadlock.
   - **The minimap2 dotplot is here, as planned:** `MINIMAP2_REFERENCE` (`-x asm5`, PAF) runs
     for samples with a `reference`, and the report draws the blocks with plotly.
+  - **Fixed 2026-09-24, from the 20hm run's outputs:** three things were produced and then
+    lost. `autocycler table -a` writes its row without a header, so `collect_metrics.py`
+    read the row as one and `autocycler.tsv` came out empty for every sample; the module now
+    writes the header first. Bakta renamed every contig to `contig_1..N`, so `rrna_depth`
+    joined its GFF to mosdepth's windows and matched nothing -- `--keep-contig-headers`
+    fixes it. The cluster dotplots were drawn but never emitted past
+    `AUTOCYCLER_CONSENSUS`, and a sample's second image of a kind used to overwrite its
+    first (GenomeScope2's transformed plot over its linear one), so repeated images are now
+    numbered.
   - **Coverage tracks use the 1 kb mosdepth windows averaged to 10 kb** in the report, so
     stage 6 runs mosdepth once.
   - **Read length and quality histograms are not redrawn.** The report points at the

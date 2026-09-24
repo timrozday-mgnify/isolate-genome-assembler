@@ -65,13 +65,18 @@ process AUTOCYCLER_CONSENSUS {
     for cluster in autocycler_out/clustering/qc_pass/cluster_*; do
         [ -f "\$cluster/5_final.gfa" ] || continue
         autocycler dotplot -i "\$cluster/5_final.gfa" \\
-            -o "dotplots/${meta.id}_\$(basename "\$cluster").png" || true
+            -o "dotplots/${meta.id}_\$(basename "\$cluster").png" \\
+            || echo "dotplot failed for \$cluster" >&2
     done
 
     if [ -f autocycler_out/consensus_assembly.yaml ]; then
         cp autocycler_out/consensus_assembly.yaml ${meta.id}.consensus.yaml
         cp autocycler_out/consensus_assembly.fasta ${meta.id}.consensus.fasta
-        autocycler table -a autocycler_out -n ${meta.id} > ${meta.id}.autocycler_table.tsv
+        # `table -a` writes the row only, so the header comes from a bare `table`.
+        # Without it collect_metrics.py reads the row as the header and the sample
+        # vanishes from the report.
+        autocycler table > ${meta.id}.autocycler_table.tsv
+        autocycler table -a autocycler_out -n ${meta.id} >> ${meta.id}.autocycler_table.tsv
     else
         # Autocycler stopped before combine. Say so in its own vocabulary, so
         # select_assembly.py needs no special case for a crash.
@@ -91,5 +96,7 @@ process AUTOCYCLER_CONSENSUS {
     echo 'consensus_assembly_fully_resolved: ${params.stub_fully_resolved}' > ${meta.id}.consensus.yaml
     cp ${meta.id}.consensus.yaml autocycler_out/consensus_assembly.yaml
     printf 'name\\tconsensus_assembly_fully_resolved\\n${meta.id}\\t${params.stub_fully_resolved}\\n' > ${meta.id}.autocycler_table.tsv
+    mkdir -p dotplots
+    printf '\\211PNG\\r\\n\\032\\n' > dotplots/${meta.id}_cluster_001.png
     """
 }
