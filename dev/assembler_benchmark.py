@@ -10,8 +10,11 @@ dev/assembler_benchmark.csv (one row per sample x arm x truth replicon) and
 dev/assembler_benchmark.md (the summary tables the defaults are chosen from).
 
 For each sample and arm the delivered assembly is scored: the arm's Autocycler
-consensus when it is fully resolved, otherwise the full-read Flye fallback, as the
-pipeline would. Each truth replicon is matched to the contig that aligns to it best;
+consensus when it is fully resolved, otherwise the fallback the pipeline's own
+`--assembly_selection` would have taken (the best-scoring full-read assembly, or Flye
+when nothing was scored). Every full-read assembly is also scored on its own, as arm
+`full_<assembler>`, which is what answers whether the consensus beats the best single
+assembler. Each truth replicon is matched to the contig that aligns to it best;
 that contig is oriented and rotated to the truth's start and its global edit distance
 taken with edlib. A replicon counts as recovered when that distance is within 1% of
 its length. Cost comes from the pipeline trace (the arm's assembler tasks) plus the
@@ -54,6 +57,9 @@ ASSEMBLER_PROCESSES = {
     "MINIASM": "miniasm",
     "MINIPOLISH": "miniasm",
 }
+# The same assemblers run on the whole read set under aliased process names. Their cost is
+# reported separately: it is not part of any arm, because every arm shares it.
+FULL_PROCESSES = {f"{process}_FULL": a for process, a in ASSEMBLER_PROCESSES.items()}
 DURATION_UNITS = {"d": 86400, "h": 3600, "m": 60, "s": 1, "ms": 0.001}
 MEMORY_UNITS = {"B": 1, "KB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12}
 
@@ -143,6 +149,22 @@ def arm_cost(
             cpu += hours(row["realtime"]) * cpu_fraction(row["%cpu"])
             consensus_wall = max(consensus_wall, hours(row["realtime"]))
     return cpu, max(chains.values(), default=0.0) + consensus_wall
+
+
+def full_costs(
+    trace: list[dict[str, str]], sample: str
+) -> dict[str, tuple[float, float]]:
+    """CPU-hours and wall hours of each assembler's full-read run on one sample."""
+    costs: dict[str, list[float]] = defaultdict(lambda: [0.0, 0.0])
+    for row in trace:
+        assembler = FULL_PROCESSES.get(short_process(row))
+        if assembler is None or row["tag"] != f"{sample}_full":
+            continue
+        cost = costs[assembler]
+        cost[0] += hours(row["realtime"]) * cpu_fraction(row["%cpu"])
+        # miniasm is three processes in a row, so its wall time is their sum.
+        cost[1] += hours(row["realtime"])
+    return {assembler: (cpu, wall) for assembler, (cpu, wall) in costs.items()}
 
 
 def rotate_to(contig: str, truth: str) -> str:
@@ -255,9 +277,7 @@ def score(args: argparse.Namespace) -> list[dict]:
         sample_id = sample["id"]
         truth_path = args.benchmark / sample["reference"]
         truth = read_fasta(truth_path)
-        fallback = (
-            args.results / "assemblies" / sample_id / "flye_full" / "flye_full.fasta"
-        )
+        fallback = args.results / "assemblies" / sample_id / "full" / "flye_full.fasta"
         deliveries: list[tuple[str, Path, tuple[dict, bool] | None]] = [
             (
                 "pipeline",
@@ -277,6 +297,13 @@ def score(args: argparse.Namespace) -> list[dict]:
             assembly = Path(f"{prefix}.consensus.fasta") if resolved else fallback
             deliveries.append((arm["arm"], assembly, (arm, resolved)))
 
+        # Every assembler's own full-read assembly, as the pipeline trimmed it.
+        scoring = args.results / "assemblies" / sample_id / "scoring"
+        costs = full_costs(trace, sample_id)
+        for candidate in sorted(scoring.glob(f"{sample_id}.*.circularised.fasta")):
+            assembler = candidate.name[len(sample_id) + 1 :].split(".")[0]
+            deliveries.append((f"full_{assembler}", candidate, None))
+
         for arm_name, assembly, arm_info in deliveries:
             replicons, extra_n, extra_len = score_assembly(
                 read_fasta(assembly), truth, truth_path
@@ -284,7 +311,10 @@ def score(args: argparse.Namespace) -> list[dict]:
             if arm_info:
                 arm, resolved = arm_info
                 cpu, wall = arm_cost(trace, consensus_trace, sample_id, arm)
-                source = "consensus" if resolved else "fallback_flye"
+                source = "consensus" if resolved else "fallback"
+            elif arm_name.startswith("full_"):
+                cpu, wall = costs.get(arm_name.removeprefix("full_"), (0.0, 0.0))
+                resolved, source = "", "full_read"
             else:
                 resolved, cpu, wall, source = "", "", "", "pipeline_final"
             for replicon in replicons:
@@ -404,6 +434,71 @@ def write_markdown(
         lines += [f"## Arms, {depth} samples", ""]
         lines += markdown_table(
             header, [arm_summary(depth_rows, arm) for arm in arm_names]
+        )
+
+    # Is the consensus worth it? Each assembler alone, and the best of them per sample
+    # beside the consensus the pipeline delivered.
+    full_arms = sorted({r["arm"] for r in rows if r["arm"].startswith("full_")})
+    if full_arms:
+        lines += [
+            "## Full-read assemblies against truth",
+            "",
+            "Each assembler on the whole read set, trimmed by CIRCULARISE and scored on",
+            "its own. No consensus, so `resolve` never ran on these; a single assembly",
+            "cannot have it, which is the asymmetry the comparison below carries.",
+            "",
+        ]
+        lines += markdown_table(header, [arm_summary(rows, arm) for arm in full_arms])
+
+        lines += ["## Consensus vs the best single assembler", ""]
+        comparison = []
+        for sample in sorted({r["sample"] for r in rows}):
+
+            def scored(arm: str) -> tuple[int, int, int]:
+                """Replicons recovered, of how many, and their summed edit distance."""
+                replicons = [
+                    r for r in rows if r["sample"] == sample and r["arm"] == arm
+                ]
+                return (
+                    sum(r["recovered"] for r in replicons),
+                    len(replicons),
+                    sum(r["edit_distance"] for r in replicons if r["recovered"]),
+                )
+
+            best_arm = min(
+                (arm for arm in full_arms if scored(arm)[1]),
+                key=lambda arm: (-scored(arm)[0], scored(arm)[2], arm),
+                default=None,
+            )
+            if best_arm is None:
+                continue
+            consensus_recovered, total, consensus_edits = scored("pipeline")
+            best_recovered, _, best_edits = scored(best_arm)
+            comparison.append(
+                [
+                    sample,
+                    percent(consensus_recovered, total),
+                    consensus_edits,
+                    best_arm.removeprefix("full_"),
+                    percent(best_recovered, total),
+                    best_edits,
+                    "consensus"
+                    if (consensus_recovered, -consensus_edits)
+                    >= (best_recovered, -best_edits)
+                    else best_arm.removeprefix("full_"),
+                ]
+            )
+        lines += markdown_table(
+            [
+                "sample",
+                "consensus recovered",
+                "consensus edit distance",
+                "best single assembler",
+                "its recovered",
+                "its edit distance",
+                "winner",
+            ],
+            comparison,
         )
 
     lines += [

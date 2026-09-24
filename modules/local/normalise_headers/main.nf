@@ -30,9 +30,14 @@ process NORMALISE_HEADERS {
     """
 
     stub:
-    def fail = "${assembler}_${subset}" in params.stub_fail_assemblies.tokenize(',')
+    def name = "${assembler}_${subset}"
+    def fail = name in params.stub_fail_assemblies.tokenize(',')
+    // An assembler that ran but found nothing leaves an empty file, not no file.
+    def contigs = name in params.stub_empty_assemblies.tokenize(',')
+        ? ''
+        : ">${name}_1 length=4 circular=true\\nACGT\\n"
     """
     ${fail ? 'exit 1' : ''}
-    printf '>${assembler}_${subset}_1 length=4 circular=true\\nACGT\\n' > ${assembler}_${subset}.fasta
+    printf '${contigs}' > ${name}.fasta
     """
 }

@@ -2,6 +2,10 @@
 // the reads that do not map go on to their own quick assembly: a circular contig among
 // them is a replicon the assembly may be missing.
 //
+// A second, permissive alignment goes out alongside it: same reads, same reference,
+// but Z-drop and the end bonus raised so the aligner extends through a local
+// difference instead of clipping. CLIPPING_PILEUPS compares the two.
+//
 // Circular contigs are mapped as they are. A read spanning the origin is split into a
 // primary and a supplementary alignment there, which mosdepth counts in full and the
 // clipping check ignores, so no rotated or extended copy of the reference is needed.
@@ -18,6 +22,7 @@ process MAP_READS {
 
     output:
     tuple val(meta), path("${meta.id}.bam"), path("${meta.id}.bam.bai"), emit: bam
+    tuple val(meta), path("${meta.id}.extend.bam"), path("${meta.id}.extend.bam.bai"), emit: bam_extend
     tuple val(meta), path("${meta.id}.mapping.tsv"), emit: stats
     tuple val(meta), path("${meta.id}.unmapped.fastq.gz"), emit: unmapped
     tuple val("${task.process}"), val('minimap2'), eval('minimap2 --version'), topic: versions
@@ -32,6 +37,11 @@ process MAP_READS {
     minimap2 -t ${task.cpus} -ax map-hifi --secondary=no ${args} ${assembly} ${reads} \\
         | samtools sort -@ ${task.cpus} -o ${meta.id}.bam
     samtools index ${meta.id}.bam
+
+    minimap2 -t ${task.cpus} -ax map-hifi --secondary=no ${params.clip_extend_args} ${args} ${assembly} ${reads} \\
+        | samtools sort -@ ${task.cpus} -o ${meta.id}.extend.bam
+    samtools index ${meta.id}.extend.bam
+
     samtools fastq -f 4 -0 ${meta.id}.unmapped.fastq.gz ${meta.id}.bam
 
     # One primary record per read (-F 0x900), so these are read and base fractions.
@@ -49,7 +59,7 @@ process MAP_READS {
 
     stub:
     """
-    touch ${meta.id}.bam ${meta.id}.bam.bai
+    touch ${meta.id}.bam ${meta.id}.bam.bai ${meta.id}.extend.bam ${meta.id}.extend.bam.bai
     printf '@read_001\\nACGT\\n+\\n####\\n' | bgzip > ${meta.id}.unmapped.fastq.gz
     printf 'sample\\treads\\tunmapped_reads\\tunmapped_read_fraction\\tbases\\tunmapped_bases\\tunmapped_base_fraction\\n${meta.id}\\t1\\t0\\t0\\t4\\t0\\t0\\n' > ${meta.id}.mapping.tsv
     """

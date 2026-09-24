@@ -31,10 +31,15 @@ process CONTIG_ENDS {
         }
         { seq = seq \$0 }
         END { if (name != "") print_ends() }
-        function print_ends(   len, head, tail) {
+        function print_ends(   len, w, head, tail) {
             len = length(seq)
-            head = (len > window) ? substr(seq, 1, window) : seq
-            tail = (len > window) ? substr(seq, len - window + 1) : seq
+            # Halve the window on a short contig so the two windows stay disjoint: when
+            # they overlap inside the contig they self-align for a trivial reason and
+            # every such contig is flagged as end-overlapping.
+            w = (len < 2 * window) ? int(len / 2) : window
+            if (w < 1) return
+            head = substr(seq, 1, w)
+            tail = substr(seq, len - w + 1)
             print ">" name "_start\\n" head
             print ">" name "_end\\n" tail
         }' ${assembly} > ends.fasta

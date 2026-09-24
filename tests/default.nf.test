@@ -36,10 +36,12 @@ nextflow_pipeline {
             assertAll(
                 { assert workflow.success },
                 // 16 read QC and contamination tasks, then 4 subsets x 7 assemblers
-                // (miniasm taking three processes), their normalisation, the Flye
-                // fallback and its normalisation, the consensus, six finishing tasks,
-                // 18 checks, the QC gate, the metrics bundle and the report.
-                { assert workflow.trace.tasks().size() == 113 },
+                // (miniasm taking three processes), their normalisation, the six
+                // full-read assemblies and their normalisation, the consensus, six
+                // checks on each of the seven scored candidates and the score itself,
+                // six finishing tasks, 18 checks, the QC gate, the metrics bundle and
+                // the report.
+                { assert workflow.trace.tasks().size() == 168 },
                 { assert path("$outputDir/results/reads/isolate01/isolate01.read_qc.tsv").exists() },
                 { assert path("$outputDir/results/contamination/isolate01/isolate01.contamination_summary.json").exists() },
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() },
@@ -78,13 +80,43 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.success },
-                { assert workflow.trace.tasks().size() == 65 },
+                { assert workflow.trace.tasks().size() == 86 },
                 { assert workflow.trace.tasks().every { !it.name.contains('CANU') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('HIFIASM') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('MINIASM') } },
                 { assert workflow.trace.tasks().every { !it.name.contains('METAMDBG') } },
                 // PLASSEMBLER_FULL is the plasmid audit, which runs whatever --assemblers says.
                 { assert workflow.trace.tasks().every { !it.name.startsWith('ISOLATE_GENOME_ASSEMBLER:ASSEMBLY:PLASSEMBLER (') } }
+            )
+        }
+    }
+
+    test("--full_read_assemblers assembles the whole read set without feeding the consensus") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/valid_samplesheet.yml"
+                outdir = "$outputDir/results"
+                publish_outputs = true
+                assemblers = 'flye,raven,plassembler'
+                full_read_assemblers = 'flye,raven'
+                publish_input_assemblies = true
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert path("$outputDir/results/assemblies/isolate01/full/flye_full.fasta").exists() },
+                { assert path("$outputDir/results/assemblies/isolate01/full/raven_full.fasta").exists() },
+                // Plassembler is dropped from the full-read set even when --assemblers has it.
+                { assert workflow.trace.tasks().every { !it.name.startsWith('ISOLATE_GENOME_ASSEMBLER:ASSEMBLY:PLASSEMBLER_FULL') } },
+                // The consensus votes on subset assemblies only: a full-read assembly
+                // shares reads with every subset, so its vote would not be independent.
+                // `inputs/` is that channel, published.
+                { assert new File("$outputDir/results/assemblies/isolate01/inputs").list().any { it.endsWith('_01.fasta') } },
+                { assert new File("$outputDir/results/assemblies/isolate01/inputs").list().every { !it.endsWith('_full.fasta') } }
             )
         }
     }
@@ -124,10 +156,10 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.success },
-                // Read QC and contamination, then only the Flye fallback, its
-                // normalisation, the reclustering, the selection, finishing, the checks
-                // and the QC gate.
-                { assert workflow.trace.tasks().size() == 47 },
+                // Read QC and contamination, then only the full-read assemblies and
+                // their normalisation, the reclustering, the selection, finishing, the
+                // checks and the QC gate.
+                { assert workflow.trace.tasks().size() == 102 },
                 { assert workflow.trace.tasks().every { !it.name.contains('SUBSAMPLE') } },
                 { assert workflow.trace.tasks().every { !it.name.startsWith('ISOLATE_GENOME_ASSEMBLER:ASSEMBLY:FLYE (') } },
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() }
@@ -175,6 +207,31 @@ nextflow_pipeline {
                 { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() },
                 { assert path("$outputDir/results/assemblies/isolate01/isolate01.assembly_attempts.tsv").text.contains('flye\t01\tfailed') },
                 { assert path("$outputDir/results/assemblies/isolate01/isolate01.assembly_attempts.tsv").text.contains('raven\t01\tok') }
+            )
+        }
+    }
+
+    test("an assembler that produces nothing does not sink the consensus") {
+        options "-stub"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/valid_samplesheet.yml"
+                outdir = "$outputDir/results"
+                publish_outputs = true
+                assemblers = 'flye,raven'
+                stub_empty_assemblies = 'flye_01'
+            }
+        }
+
+        then {
+            def attempts = path("$outputDir/results/assemblies/isolate01/isolate01.assembly_attempts.tsv").text
+            assertAll(
+                { assert workflow.success },
+                // Reported honestly, and the assemblers that did produce something survive.
+                { assert attempts.contains('flye\t01\tfailed') },
+                { assert attempts.contains('raven\t01\tok') },
+                { assert path("$outputDir/results/assemblies/isolate01/final/isolate01.assembly.fasta").exists() }
             )
         }
     }

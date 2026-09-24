@@ -201,7 +201,7 @@ def sample_inputs(
         ),
     )
 
-    source = "autocycler" if s["resolved"] else "fallback_flye"
+    source = "autocycler" if s["resolved"] else "fallback_hifiasm"
     add(
         "assembly-source",
         tsv(
@@ -252,6 +252,44 @@ def sample_inputs(
                     "depth_ratio": ratio,
                 }
                 for name, length, ratio, kind in replicons
+            ],
+        ),
+    )
+    # Every candidate assembly scored against the others; the winner is what an
+    # unresolved consensus falls back to.
+    scored = [
+        ("autocycler", 1 + len(s["plasmids"]), 1 + len(s["plasmids"]), 0, 59.8),
+        ("hifiasm", 1 + len(s["plasmids"]), 1 + len(s["plasmids"]), 0, 58.2),
+        ("flye", 2 + len(s["plasmids"]), 1, 1, 55.1),
+        ("raven", 8, 0, 3, 43.0),
+    ]
+    add(
+        "full-assemblies",
+        tsv(
+            d / "full_assemblies.tsv",
+            [
+                {
+                    "sample": sample,
+                    "assembler": assembler,
+                    "contigs": contigs,
+                    "circular_contigs": circular,
+                    "n50": CHROMOSOME,
+                    "total_length": total,
+                    "size_ratio": round(total / CHROMOSOME, 4),
+                    "merqury_qv": qv,
+                    "merqury_completeness": 99.1,
+                    "unmapped_read_fraction": 0.004,
+                    "clipping_confirmed": clipping,
+                    "filtered": "",
+                    "rank": rank,
+                    "selected": str(rank == 1).lower(),
+                }
+                for rank, (assembler, contigs, circular, clipping, qv) in enumerate(
+                    scored if s["resolved"] else scored[1:], start=1
+                )
+                for total in [
+                    CHROMOSOME + sum(length for _, length, _ in s["plasmids"])
+                ]
             ],
         ),
     )

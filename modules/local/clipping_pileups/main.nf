@@ -8,7 +8,7 @@ process CLIPPING_PILEUPS {
         : 'quay.io/biocontainers/pysam:0.24.1--py312hf5ad864_0'}"
 
     input:
-    tuple val(meta), path(bam), path(bai)
+    tuple val(meta), path(bam), path(bai), path(extend_bam), path(extend_bai)
 
     output:
     tuple val(meta), path("${meta.id}.clipping.tsv"), emit: pileups
@@ -22,6 +22,7 @@ process CLIPPING_PILEUPS {
     clipping_pileups.py \\
         --sample ${meta.id} \\
         --bam ${bam} \\
+        --extend-bam ${extend_bam} \\
         --min-clip ${params.clip_min_length} \\
         --min-reads ${params.clip_min_reads} \\
         --min-fraction ${params.clip_min_fraction} \\
@@ -30,6 +31,6 @@ process CLIPPING_PILEUPS {
 
     stub:
     """
-    printf 'sample\\tcontig\\tstart\\tend\\tclipped_reads\\tdepth\\tclipped_fraction\\n' > ${meta.id}.clipping.tsv
+    printf 'sample\\tcontig\\tstart\\tend\\tclipped_reads\\tdepth\\tclipped_fraction\\ttail_reads\\ttail_target\\ttail_agree\\textend_clipped_reads\\textend_depth\\textend_clipped_fraction\\tverdict\\n' > ${meta.id}.clipping.tsv
     """
 }

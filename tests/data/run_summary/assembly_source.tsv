@@ -1,4 +1,4 @@
 sample	assembly_source	fully_resolved	reason
 iso_pass	autocycler	true	consensus assembly fully resolved
 iso_warn	autocycler	true	consensus assembly fully resolved
-iso_fail	fallback_flye	false	consensus graph has 4 unitigs
+iso_fail	fallback_hifiasm	false	consensus graph has 4 unitigs

@@ -2,6 +2,7 @@ include { READ_QC       } from '../subworkflows/local/read_qc'
 include { CONTAMINATION } from '../subworkflows/local/contamination'
 include { ASSEMBLY      } from '../subworkflows/local/assembly'
 include { FINISHING     } from '../subworkflows/local/finishing'
+include { SCORING       } from '../subworkflows/local/scoring'
 include { CHECKS        } from '../subworkflows/local/checks'
 include { REMOVE_HUMAN  } from '../modules/local/remove_human'
 include { QC_GATES      } from '../modules/local/qc_gates'
@@ -56,14 +57,26 @@ workflow ISOLATE_GENOME_ASSEMBLER {
     )
 
     ASSEMBLY(REMOVE_HUMAN.out.reads, READ_QC.out.summary)
-    FINISHING(ASSEMBLY.out.assembly, REMOVE_HUMAN.out.reads)
+
+    // Every candidate assembly scored against the others -- each assembler's full-read
+    // assembly and the consensus -- and the winner picked, as --assembly_selection says.
+    SCORING(
+        ASSEMBLY.out.full_assemblies.mix(
+            ASSEMBLY.out.consensus.map { meta, assembly -> [meta, 'autocycler', assembly] }
+        ),
+        REMOVE_HUMAN.out.reads,
+        READ_QC.out.summary,
+        ASSEMBLY.out.selection_in,
+    )
+
+    FINISHING(SCORING.out.assembly, REMOVE_HUMAN.out.reads)
     CHECKS(
         FINISHING.out.assembly,
         FINISHING.out.contigs,
         REMOVE_HUMAN.out.reads,
-        READ_QC.out.summary,
         ASSEMBLY.out.autocycler_dir,
         ASSEMBLY.out.consensus_gfa,
+        SCORING.out.meryl_db,
     )
 
     // Every measurement for a sample, gathered into parallel lists of qc_gates.py option
@@ -72,7 +85,7 @@ workflow ISOLATE_GENOME_ASSEMBLER {
         .mix(
             READ_QC.out.summary.map { meta, f -> [meta, 'read-qc', f] },
             CONTAMINATION.out.summary.map { meta, f -> [meta, 'contamination', f] },
-            ASSEMBLY.out.assembly_source.map { meta, f -> [meta, 'assembly-source', f] },
+            SCORING.out.assembly_source.map { meta, f -> [meta, 'assembly-source', f] },
             FINISHING.out.contigs.map { meta, f -> [meta, 'contigs', f] },
             FINISHING.out.plasmid_audit.map { meta, f -> [meta, 'plasmid-audit', f] },
             CHECKS.out.metrics,
@@ -92,6 +105,7 @@ workflow ISOLATE_GENOME_ASSEMBLER {
             },
             ASSEMBLY.out.attempts.map { meta, f -> [meta, 'assembly-attempts', f] },
             ASSEMBLY.out.autocycler_table.map { meta, f -> [meta, 'autocycler', f] },
+            SCORING.out.scores.map { meta, f -> [meta, 'full-assemblies', f] },
             CHECKS.out.report,
         )
         .map { meta, kind, f -> [[meta.id, kind], f] }
@@ -117,7 +131,7 @@ workflow ISOLATE_GENOME_ASSEMBLER {
     assembly = FINISHING.out.assembly
     contigs = FINISHING.out.contigs
     plasmid_audit = FINISHING.out.plasmid_audit
-    assembly_source = ASSEMBLY.out.assembly_source
+    assembly_source = SCORING.out.assembly_source
     read_qc = READ_QC.out.summary
     contamination = CONTAMINATION.out.summary
     qc = QC_GATES.out.qc

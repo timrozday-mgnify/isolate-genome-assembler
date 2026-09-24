@@ -110,11 +110,28 @@ def test_the_default_thresholds_cover_every_check() -> None:
 
 def test_the_fallback_assembly_counts_as_unresolved(tmp_path: Path) -> None:
     source = write(
-        tmp_path / "source.tsv", "sample\tassembly_source\ns1\tfallback_flye\n"
+        tmp_path / "source.tsv", "sample\tassembly_source\ns1\tfallback_hifiasm\n"
     )
     assert qc_gates.consensus_unresolved(source) == 1.0
     write(source, "sample\tassembly_source\ns1\tautocycler\n")
     assert qc_gates.consensus_unresolved(source) == 0.0
+
+
+def test_a_resolved_consensus_that_lost_on_score_is_not_unresolved(
+    tmp_path: Path,
+) -> None:
+    # always_score can deliver a better-scoring single assembly over a consensus that
+    # resolved perfectly well; the gate measures the consensus, not the choice.
+    source = write(
+        tmp_path / "source.tsv",
+        "sample\tassembly_source\tfully_resolved\ns1\tfallback_hifiasm\ttrue\n",
+    )
+    assert qc_gates.consensus_unresolved(source) == 0.0
+    write(
+        source,
+        "sample\tassembly_source\tfully_resolved\ns1\tfallback_hifiasm\tfalse\n",
+    )
+    assert qc_gates.consensus_unresolved(source) == 1.0
 
 
 def test_a_linear_chromosome_is_counted(tmp_path: Path) -> None:

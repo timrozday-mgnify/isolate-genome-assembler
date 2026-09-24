@@ -6,7 +6,6 @@ include { INSPECTOR                   } from '../../modules/local/inspector'
 include { FLYE as FLYE_UNMAPPED       } from '../../modules/local/flye'
 include { VARIANT_PILEUP              } from '../../modules/local/variant_pileup'
 include { VARIANT_SCAN                } from '../../modules/local/variant_scan'
-include { MERYL_COUNT                 } from '../../modules/nf-core/meryl/count'
 include { MERQURY_MERQURY             } from '../../modules/nf-core/merqury/merqury'
 include { BAKTA_BAKTA                 } from '../../modules/nf-core/bakta/bakta'
 include { DIAMOND_BLASTP              } from '../../modules/nf-core/diamond/blastp'
@@ -25,13 +24,6 @@ def database(param) {
     param ? file(param, checkIfExists: true) : []
 }
 
-// Merqury's recommended k for a genome of this size (its best_k.sh): the shortest k at
-// which a random k-mer is unlikely to recur, with a 0.1% collision rate.
-def merylK(genomeSize) {
-    def size = genomeSize?.toString()?.isDouble() ? genomeSize as double : 5_000_000
-    Math.max(15, Math.ceil(Math.log(size * (1 - 0.001) / 0.001) / Math.log(4)) as int)
-}
-
 // Stage 6. Every check writes a small table that QC_GATES and the report read; none of
 // them decides pass or fail itself.
 workflow CHECKS {
@@ -39,16 +31,16 @@ workflow CHECKS {
     ch_assembly // tuple: [meta, final assembly FASTA]
     ch_contigs // tuple: [meta, <id>.contigs.tsv]
     ch_reads // tuple: [meta, screened HiFi FASTQ]
-    ch_read_qc // tuple: [meta, read_qc.tsv], for the genome size
     ch_autocycler_dir // tuple: [meta, autocycler_out/]
     ch_consensus_gfa // tuple: [meta, consensus_assembly.gfa], when combine ran
+    ch_meryl_db // tuple: [meta, meryl database], counted once per sample in SCORING
 
     main:
     // --- B. Read support ---
     MAP_READS(ch_assembly.join(ch_reads))
     MOSDEPTH(MAP_READS.out.bam.map { meta, bam, bai -> [meta, bam, bai, []] }, [[:], []], false)
     COVERAGE_REGIONS(MOSDEPTH.out.regions_bed.join(ch_contigs))
-    CLIPPING_PILEUPS(MAP_READS.out.bam)
+    CLIPPING_PILEUPS(MAP_READS.out.bam.join(MAP_READS.out.bam_extend))
     INSPECTOR(ch_assembly.join(ch_reads))
 
     // A circular contig among the reads that did not map is a replicon the assembly may
@@ -66,14 +58,7 @@ workflow CHECKS {
     VARIANT_PILEUP(MAP_READS.out.bam.join(ch_assembly))
     VARIANT_SCAN(VARIANT_PILEUP.out.vcf.join(ch_assembly))
 
-    ch_meryl_in = ch_reads
-        .join(ch_read_qc.splitCsv(header: true, sep: '\t').map { meta, row -> [meta, row.genome_size_used] })
-        .multiMap { meta, reads, genome_size ->
-            reads: [meta, reads]
-            k: merylK(genome_size)
-        }
-    MERYL_COUNT(ch_meryl_in.reads, ch_meryl_in.k)
-    MERQURY_MERQURY(MERYL_COUNT.out.meryl_db.join(ch_assembly))
+    MERQURY_MERQURY(ch_meryl_db.join(ch_assembly))
 
     // --- E. Gene-level integrity ---
     BAKTA_BAKTA(ch_assembly, database(params.bakta_db), [], [], [], [])
