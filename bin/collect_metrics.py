@@ -206,17 +206,17 @@ def collect(manifest: Path, outdir: Path) -> dict[str, list[dict]]:
         if sample not in samples:
             samples.append(sample)
         if kind.startswith("image-"):
-            target = (
-                Path("images") / f"{sample}.{kind.removeprefix('image-')}{path.suffix}"
+            name = kind.removeprefix("image-")
+            # A sample can have several images of one kind -- one cluster dotplot per
+            # cluster -- so the second and later ones are numbered rather than written
+            # over the first.
+            taken = sum(
+                1 for row in images if row["sample"] == sample and row["kind"] == name
             )
+            suffix = f"_{taken + 1}" if taken else ""
+            target = Path("images") / f"{sample}.{name}{suffix}{path.suffix}"
             shutil.copyfile(path, outdir / target)
-            images.append(
-                {
-                    "sample": sample,
-                    "kind": kind.removeprefix("image-"),
-                    "path": str(target),
-                }
-            )
+            images.append({"sample": sample, "kind": name, "path": str(target)})
             continue
         parsers = [PARSERS.get(kind, (kind.replace("-", "_"), read_tsv))]
         parsers += [EXTRA_TABLES[kind]] if kind in EXTRA_TABLES else []

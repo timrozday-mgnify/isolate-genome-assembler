@@ -58,6 +58,10 @@ nextflow_pipeline {
                 { assert path("$outputDir/results/qc/isolate01.qc.json").json.checks.read_depth != null },
                 { assert path("$outputDir/results/report/run_summary/samples.tsv").text.contains('isolate01') },
                 { assert path("$outputDir/results/report/run_summary/qc_gates.tsv").exists() },
+                // The Autocycler table needs its header to survive collection, and the
+                // cluster dotplots have to reach the report rather than the work dir.
+                { assert path("$outputDir/results/report/run_summary/autocycler.tsv").text.contains('isolate01') },
+                { assert path("$outputDir/results/report/run_summary/images.tsv").text.contains('dotplot') },
                 { assert path("$outputDir/results/report/isolate_assembly_report.html").exists() },
                 { assert path("$outputDir/results/report/samples/isolate01.report.html").exists() },
                 { assert path("$outputDir/results/pipeline_info/software_versions.tsv").text.contains('flye') }
