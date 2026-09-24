@@ -81,6 +81,66 @@ Every parameter is declared with an explanatory comment in
 | `--busco_lineage` | `bacteria_odb12` | BUSCO dataset, read offline from `--busco_db` |
 | `--per_sample_reports` | `true` | Also render `<id>.report.html` for each sample |
 
+## Pipeline flow
+
+```
+samplesheet (YAML): id, reads, optional reference / autocycler_dir
+        |
+        v
+[1] READ QC ................ PREPARE_READS -> HiFiAdapterFilt -> seqkit stats, NanoPlot,
+                             GC + duplicate profile, KMC -> GenomeScope2, Autocycler
+                             genome size  =>  read_qc.tsv, genome size estimate
+        |
+        v
+[2] CONTAMINATION .......... sylph profile (GTDB) + sylph-tax -> taxonomy
+                             sylph query (human db), minimap2 vs CHM13 -> human fraction
+                             =>  contamination_summary.json
+        |
+        v
+[3] REMOVE_HUMAN ........... drops human reads when --remove_human says so (always runs;
+                             the decision file, not the DAG, decides)
+        |
+        +-------------------------------+
+        |                               |
+        v                               v
+[4] ASSEMBLY                        full read set
+    Autocycler subsample            each --full_read_assemblers tool assembles all reads
+    -> N subsets                    (Flye always, whether or not it is selected)
+    -> every --assemblers tool             |
+       assembles every subset              |
+    -> normalise headers                   |
+    -> Autocycler cluster/trim/            |
+       resolve/combine -> consensus        |
+    -> Plassembler (plasmids)              |
+        |                                  |
+        +----------------+-----------------+
+                         v
+[5] SCORING ................ every candidate (each full assembly + the consensus):
+                             contig ends -> circularise, seqkit stats, meryl+Merqury QV,
+                             minimap2 -> clipping pile-ups  =>  full_assemblies.tsv
+                             SELECT_ASSEMBLY picks the winner per --assembly_selection
+                         |
+                         v
+[6] FINISHING .............. contig ends -> dnaapler rotate -> classify replicons
+                             (<id>_chromosome, <id>_plasmid_N); flags, never drops
+                             Plassembler on full reads + skani  =>  plasmid_audit.tsv
+                         |
+                         v
+[7] CHECKS ................. minimap2/samtools mapping -> mosdepth windows, clipping
+                             pile-ups, Flye on unmapped reads; Inspector; bcftools
+                             pileup -> variant scan; meryl + Merqury QV; Bakta ->
+                             DIAMOND vs Swiss-Prot (IDEEL); CheckM2; BUSCO; GTDB-Tk;
+                             skani vs --reference; Bandage + assembler contribution
+                         |
+                         v
+[8] GATES + REPORT ......... qc_gates.py vs qc_thresholds.yml -> <id>.qc.json
+                             collect_metrics.py -> report/run_summary/*.tsv
+                             Quarto -> isolate_assembly_report.html (+ per-sample)
+```
+
+`--prepare_databases` is a separate entry point that runs none of the above: it only
+downloads and builds the databases listed under [Databases](#databases).
+
 ## Outputs
 
 `reads/<id>/` holds `read_qc.tsv` and the per-tool measurements
@@ -174,6 +234,83 @@ check writes a small table under `checks/<id>/`; none of them decides pass or fa
 `{value, threshold, status, message}` entry per check and an overall status, the worst
 entry. A check that could not be measured is `not_measured` and does not change the overall
 status. To change a threshold, copy the file, edit it, and pass `--qc_thresholds`.
+
+## Tools
+
+Every tool runs in a pinned container (Bioconda/Galaxy or Seqera Wave), listed here with
+the version the pipeline pins and what it is used for. The exact pins live in each module;
+`pipeline_info/software_versions.tsv` records what actually ran.
+
+### Reads
+
+| Tool | Version | Purpose |
+|---|---|---|
+| HiFiAdapterFilt | 3.0.0 | Find and remove reads carrying PacBio adapter sequence |
+| seqkit | 2.13.0 | Read and assembly length/count/N50 statistics |
+| NanoPlot | 1.47.0 | Read length and quality distributions, plots for the report |
+| KMC | 3.2.4 | K-mer count histogram (`--kmer_size`) feeding GenomeScope2 |
+| GenomeScope2 | 2.1.0 | Genome size, heterozygosity and repeat estimate from the k-mer spectrum |
+| Autocycler (`subsample`, `helper genome_size`) | 0.7.0 | Independent read subsets and a second genome size estimate |
+
+### Contamination
+
+| Tool | Version | Purpose |
+|---|---|---|
+| sylph | 0.9.0 | Profile reads against GTDB, and query them against the human sketch |
+| sylph-tax | 1.9.1 | Turn sylph's genome hits into a taxonomic profile |
+| minimap2 | 2.30 | Align reads to CHM13 to measure (and select) human reads |
+
+### Assembly
+
+| Tool | Version | Purpose |
+|---|---|---|
+| Flye | 2.9.6 | HiFi assembler; also the fallback assembly and the unmapped-read assembly |
+| hifiasm | 0.25.0 | HiFi assembler |
+| Raven | 1.8.3 | Long-read assembler |
+| Canu | 2.3 | Long-read assembler |
+| miniasm | 0.3 | Long-read assembler (overlaps from minimap2) |
+| minipolish | 0.2.1 | Polish the miniasm graph, which is otherwise unpolished |
+| metaMDBG | 1.4 | Metagenome-oriented HiFi assembler, used here for its contiguity |
+| myloasm | 0.7.0 | Optional assembler (`--assemblers myloasm`) |
+| LJA | 0.2 | Optional assembler (`--assemblers lja`) |
+| Plassembler | 1.8.5 | Dedicated plasmid assembly, on subsets and again on the full read set |
+| Autocycler (`cluster`/`trim`/`resolve`/`combine`) | 0.7.0 | Consensus assembly across all input assemblies |
+
+### Selection and finishing
+
+| Tool | Version | Purpose |
+|---|---|---|
+| minimap2 | 2.30 | Self-alignment for circular end-overlap, and read alignment for scoring |
+| samtools | 1.24 | Sort, index and stream the alignments the checks read |
+| meryl | 1.4.1 | K-mer database of the reads, shared by every candidate's QV |
+| Merqury | 1.3 | Reference-free QV and k-mer completeness per candidate |
+| dnaapler | 1.4.0 | Rotate circular contigs to *dnaA* / *repA* / *terL* |
+| skani | 0.2.2 | ANI: plasmid audit matches, and comparison to the samplesheet `reference` |
+
+### Checks
+
+| Tool | Version | Purpose |
+|---|---|---|
+| mosdepth | (Wave `htslib_mosdepth_gzip`) | Per-window depth for the uneven-coverage check |
+| pysam | 0.24.1 | Read the BAM for clipping pile-ups and depth-window tables |
+| Inspector | 1.3.1 | Structural and small-scale assembly errors, plus its own QV |
+| bcftools | 1.23.1 | Pileup and call for the allele-frequency and homopolymer scan |
+| Bakta | (Wave `bakta_diamond`) | Annotation: CDS, rRNA and tRNA for the gene checks |
+| DIAMOND | 2.2.1 | `blastp` of Bakta proteins vs Swiss-Prot for the IDEEL frameshift test |
+| CheckM2 | 1.1.0 | Completeness and contamination |
+| BUSCO | 6.1.0 | Single-copy marker completeness and duplication (`--busco_lineage`) |
+| GTDB-Tk | 2.7.2 | Taxonomic classification of the finished assembly |
+| Bandage | 0.9.0 | Image of the Autocycler consensus graph |
+
+### Infrastructure
+
+| Tool | Version | Purpose |
+|---|---|---|
+| Nextflow (DSL2) | ≥ 25.0.0 | Workflow engine; SLURM + Singularity/Apptainer profiles |
+| Python | 3.12 | Every script in [`bin/`](bin/) and the small local modules |
+| Quarto, papermill, pandas, plotly | report image | Render the self-contained HTML report |
+| GNU wget | 1.18 | Database downloads under `--prepare_databases` |
+| nf-test, pytest, ruff, pre-commit | — | Stub tests, Python tests, lint and formatting |
 
 ## Testing
 
