@@ -629,6 +629,12 @@ def sample_inputs(
     )
     (d / "bandage.png").write_bytes(PNG)
     add("image-bandage", d / "bandage.png")
+    # One dotplot per QC-pass cluster, so the numbering of repeated image kinds is
+    # exercised as well as the report section.
+    for cluster in range(1, len(replicons) + 1):
+        plot = d / f"{sample}_cluster_{cluster:03d}.png"
+        plot.write_bytes(PNG)
+        add("image-dotplot", plot)
 
     if s["reference"]:
         add(

@@ -197,5 +197,6 @@ workflow ASSEMBLY {
     autocycler_dir = AUTOCYCLER_CONSENSUS.out.autocycler_dir
     consensus = AUTOCYCLER_CONSENSUS.out.consensus
     consensus_gfa = AUTOCYCLER_CONSENSUS.out.gfa
+    cluster_dotplots = AUTOCYCLER_CONSENSUS.out.dotplots
     autocycler_table = AUTOCYCLER_CONSENSUS.out.table
 }
