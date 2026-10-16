@@ -295,7 +295,7 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.failed },
-                { assert workflow.stdout.any { it.contains('--sylph_gtdb_db') } || workflow.errorReport.contains('--sylph_gtdb_db') }
+                { assert (workflow.stdout + workflow.stderr).any { it.contains('--sylph_gtdb_db') } }
             )
         }
     }
