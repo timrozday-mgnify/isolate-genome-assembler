@@ -4,6 +4,14 @@ Before implementing or changing any part of the pipeline, read
 [the implementation plan](docs/implementation_plan.md). It is the approved specification
 and records which phases are done.
 
+Two further plans cover work in progress:
+
+- [full read assemblies](docs/full_read_assemblies_plan.md)
+- [multi-platform read checks](docs/multiplatform_read_checks_plan.md) -- finding breaks in
+  finished genomes with non-HiFi reads. **Plan only, nothing implemented**; it is the one
+  place where the HiFi-only constraint below is scheduled to change, and it does not change
+  until that plan says a phase is done.
+
 Key constraints to preserve:
 
 - HiFi-only input: no short-read or Medaka polishing.

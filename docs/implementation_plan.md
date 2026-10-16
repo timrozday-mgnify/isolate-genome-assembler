@@ -229,10 +229,38 @@ is weaker than usual here.
 # reference                optional. Closest known complete genome FASTA, for skani ANI and dotplot.
 # autocycler_cluster_args  optional. Extra args for `autocycler cluster` (manual curation).
 # autocycler_dir           optional. A previous run's autocycler_out/<id>; skips subsample/assemble/compress.
+# assembly                 optional. An existing genome FASTA to assess rather than assemble;
+#                          makes `reads` optional. Mutually exclusive with autocycler_dir.
 - id: isolate01
   reads: data/isolate01.hifi_reads.fastq.gz
   expected_taxon: g__Escherichia
 ```
+
+### Assessing an existing genome (added 2026-10-16)
+
+`assembly` turns the pipeline into a checker for a genome it did not build. Stages 3 and 4
+are skipped; the FASTA is decompressed by `PREPARE_ASSEMBLY` and enters stage 5 where
+`SELECT_ASSEMBLY`'s output would have. `reads` is optional, and a sample without it is
+simply absent from the read-bearing channels, so every join drops it and the checks it
+would feed report `not_measured`. Nothing is faked and no second code path exists: the one
+workflow runs, with fewer processes in it.
+
+Two consequences were deliberate:
+
+- **`MERYL_COUNT` moved from `SCORING` up into the workflow.** It is a per-sample count,
+  not a per-candidate one, and an assessed genome needs it for Merqury without any of
+  `SCORING` having run.
+- **Circularity is tri-state.** `classify_replicons.py` used to read a missing `circular=`
+  tag as linear, which is right for an assembly this pipeline built -- its assemblers
+  always write the tag -- and wrong for a submitted FASTA, which never carries one. A
+  missing tag is now `unknown`: it earns no `linear` flag, is not dropped by
+  `--drop_flagged_contigs`, and leaves `chromosome_not_circular` `not_measured`. Without
+  this, every closed reference genome fails that gate on a missing header field.
+
+This exists to calibrate the Phase 6 thresholds against something other than the pipeline's
+own output: a gate that trips on published closed genomes of the same organisms is
+measuring convention, not quality. [`dev/reference_genome_gates.py`](../dev/reference_genome_gates.py)
+and [its write-up](../dev/reference_genome_gates.md) are the first such study.
 
 ### Databases (params, all prebuilt; `-entry PREPARE_DATABASES` downloads/builds them)
 
