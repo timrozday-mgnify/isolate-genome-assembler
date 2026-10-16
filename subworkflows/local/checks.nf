@@ -70,11 +70,15 @@ workflow CHECKS {
     )
     // DIAMOND_BLASTP adds the database name to meta, which would stop every later join.
     ch_ideel_hits = DIAMOND_BLASTP.out.txt.map { meta, hits -> [meta - [db: 'ideel_db'], hits] }
+    // The coverage windows are only there for a sample with reads; `remainder: true`
+    // keeps the IDEEL ratios, which need none, measurable without them.
     GENE_CHECKS(
         BAKTA_BAKTA.out.faa
             .join(ch_ideel_hits)
             .join(BAKTA_BAKTA.out.gff)
-            .join(MOSDEPTH.out.regions_bed)
+            .join(MOSDEPTH.out.regions_bed, remainder: true)
+            .filter { row -> row[1] != null }
+            .map { meta, faa, hits, gff, windows -> [meta, faa, hits, gff, windows ?: []] }
     )
 
     // --- F. Completeness, contamination and identity ---
