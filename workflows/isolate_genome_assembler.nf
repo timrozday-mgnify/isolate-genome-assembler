@@ -5,9 +5,18 @@ include { FINISHING     } from '../subworkflows/local/finishing'
 include { SCORING       } from '../subworkflows/local/scoring'
 include { CHECKS        } from '../subworkflows/local/checks'
 include { REMOVE_HUMAN  } from '../modules/local/remove_human'
+include { PREPARE_ASSEMBLY } from '../modules/local/prepare_assembly'
+include { MERYL_COUNT   } from '../modules/nf-core/meryl/count'
 include { QC_GATES      } from '../modules/local/qc_gates'
 include { COLLECT_METRICS } from '../modules/local/collect_metrics'
 include { QUARTO_REPORT } from '../modules/local/quarto_report'
+
+// Merqury's recommended k for a genome of this size (its best_k.sh): the shortest k at
+// which a random k-mer is unlikely to recur, with a 0.1% collision rate.
+def merylK(genomeSize) {
+    def size = genomeSize?.toString()?.isDouble() ? genomeSize as double : 5_000_000
+    Math.max(15, Math.ceil(Math.log(size * (1 - 0.001) / 0.001) / Math.log(4)) as int)
+}
 
 // The thresholds YAML as JSON, read once here so that a malformed file stops the run at
 // start-up rather than in the last task of every sample.
@@ -42,10 +51,20 @@ def runInfoJson() {
 
 workflow ISOLATE_GENOME_ASSEMBLER {
     take:
-    ch_samples // tuple: [meta map, one or more PacBio HiFi read files]
+    ch_samples // tuple: [meta map, zero or more PacBio HiFi read files]
 
     main:
-    READ_QC(ch_samples)
+    // A sample with `assembly` in the samplesheet is an existing genome being held to the
+    // same standard, not something to assemble: stages 3-4 are skipped and the FASTA goes
+    // straight to finishing. Its reads are optional, and so is every check that needs them.
+    ch_branched = ch_samples.branch { meta, _reads ->
+        assess: meta.assembly
+        assemble: true
+    }
+
+    // Stages 1-2 need reads. Samples without them are absent from these channels, so every
+    // join below drops them and the checks they feed report not_measured.
+    READ_QC(ch_samples.filter { _meta, reads -> reads })
     CONTAMINATION(READ_QC.out.reads)
 
     // Always runs so the DAG stays static and resume-safe; the decision file, not the
@@ -56,7 +75,25 @@ workflow ISOLATE_GENOME_ASSEMBLER {
             .join(CONTAMINATION.out.remove_human)
     )
 
-    ASSEMBLY(REMOVE_HUMAN.out.reads, READ_QC.out.summary)
+    ch_genome_size = READ_QC.out.summary
+        .splitCsv(header: true, sep: '\t')
+        .map { meta, row -> [meta, row.genome_size_used] }
+
+    // One meryl database per sample, counted here because both SCORING and CHECKS use it,
+    // and an assessed genome needs it without any of SCORING having run.
+    ch_meryl_in = REMOVE_HUMAN.out.reads
+        .join(ch_genome_size)
+        .multiMap { meta, reads, genome_size ->
+            reads: [meta, reads]
+            k: merylK(genome_size)
+        }
+    MERYL_COUNT(ch_meryl_in.reads, ch_meryl_in.k)
+
+    ch_to_assemble = REMOVE_HUMAN.out.reads
+        .join(ch_branched.assemble)
+        .map { meta, reads, _samplesheet_reads -> [meta, reads] }
+
+    ASSEMBLY(ch_to_assemble, READ_QC.out.summary)
 
     // Every candidate assembly scored against the others -- each assembler's full-read
     // assembly and the consensus -- and the winner picked, as --assembly_selection says.
@@ -64,19 +101,26 @@ workflow ISOLATE_GENOME_ASSEMBLER {
         ASSEMBLY.out.full_assemblies.mix(
             ASSEMBLY.out.consensus.map { meta, assembly -> [meta, 'autocycler', assembly] }
         ),
-        REMOVE_HUMAN.out.reads,
+        ch_to_assemble,
         READ_QC.out.summary,
         ASSEMBLY.out.selection_in,
+        MERYL_COUNT.out.meryl_db,
     )
 
-    FINISHING(SCORING.out.assembly, REMOVE_HUMAN.out.reads)
+    PREPARE_ASSEMBLY(ch_branched.assess.map { meta, _reads -> [meta, meta.assembly] })
+
+    // What gets finished and checked: the assembly SCORING picked, or the one the
+    // samplesheet gave. A sample is in exactly one of the two.
+    ch_assembly = SCORING.out.assembly.mix(PREPARE_ASSEMBLY.out.assembly)
+
+    FINISHING(ch_assembly, REMOVE_HUMAN.out.reads)
     CHECKS(
         FINISHING.out.assembly,
         FINISHING.out.contigs,
         REMOVE_HUMAN.out.reads,
         ASSEMBLY.out.autocycler_dir,
         ASSEMBLY.out.consensus_gfa,
-        SCORING.out.meryl_db,
+        MERYL_COUNT.out.meryl_db,
     )
 
     // Every measurement for a sample, gathered into parallel lists of qc_gates.py option

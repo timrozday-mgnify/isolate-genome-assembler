@@ -9,7 +9,7 @@ process GENE_CHECKS {
         : 'quay.io/biocontainers/python:3.12.12'}"
 
     input:
-    tuple val(meta), path(proteins), path(hits), path(gff), path(windows)
+    tuple val(meta), path(proteins), path(hits), path(gff), path(windows)  // windows optional
 
     output:
     tuple val(meta), path("${meta.id}.ideel.tsv"), emit: ratios
@@ -21,13 +21,16 @@ process GENE_CHECKS {
     task.ext.when == null || task.ext.when
 
     script:
+    // Without mapped reads there are no coverage windows, so rrna_depth.tsv comes out
+    // empty and the IDEEL ratios, which need none, are still measured.
+    def windows_arg = windows ? "--windows ${windows}" : ''
     """
     ideel_ratios.py \\
         --sample ${meta.id} \\
         --proteins ${proteins} \\
         --hits ${hits} \\
         --gff ${gff} \\
-        --windows ${windows} \\
+        ${windows_arg} \\
         --min-ratio ${params.ideel_min_ratio} \\
         --output ${meta.id}.ideel.tsv \\
         --summary ${meta.id}.ideel_summary.tsv \\
@@ -35,13 +38,14 @@ process GENE_CHECKS {
     """
 
     stub:
+    def windows_stub = windows ? "--windows ${windows}" : ''
     """
     ideel_ratios.py \\
         --sample ${meta.id} \\
         --proteins ${proteins} \\
         --hits ${hits} \\
         --gff ${gff} \\
-        --windows ${windows} \\
+        ${windows_stub} \\
         --output ${meta.id}.ideel.tsv \\
         --summary ${meta.id}.ideel_summary.tsv \\
         --rrna-output ${meta.id}.rrna_depth.tsv

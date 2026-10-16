@@ -1,19 +1,11 @@
 include { CONTIG_ENDS as CONTIG_ENDS_CANDIDATE } from '../../modules/local/contig_ends'
 include { CIRCULARISE                          } from '../../modules/local/circularise'
 include { SEQKIT_STATS as SEQKIT_STATS_CANDIDATE } from '../../modules/nf-core/seqkit/stats'
-include { MERYL_COUNT                          } from '../../modules/nf-core/meryl/count'
 include { MERQURY_MERQURY as MERQURY_CANDIDATE } from '../../modules/nf-core/merqury/merqury'
 include { MAP_READS as MAP_READS_CANDIDATE     } from '../../modules/local/map_reads'
 include { CLIPPING_PILEUPS as CLIPPING_PILEUPS_CANDIDATE } from '../../modules/local/clipping_pileups'
 include { SCORE_ASSEMBLIES                     } from '../../modules/local/score_assemblies'
 include { SELECT_ASSEMBLY                      } from '../../modules/local/select_assembly'
-
-// Merqury's recommended k for a genome of this size (its best_k.sh): the shortest k at
-// which a random k-mer is unlikely to recur, with a 0.1% collision rate.
-def merylK(genomeSize) {
-    def size = genomeSize?.toString()?.isDouble() ? genomeSize as double : 5_000_000
-    Math.max(15, Math.ceil(Math.log(size * (1 - 0.001) / 0.001) / Math.log(4)) as int)
-}
 
 // Score every candidate assembly for a sample against the others, reference-free. The
 // candidates are each assembler's full-read assembly plus the Autocycler consensus, and
@@ -27,21 +19,12 @@ workflow SCORING {
     ch_reads // tuple: [meta, screened HiFi FASTQ]
     ch_read_qc // tuple: [meta, read_qc.tsv], for the genome size
     ch_selection_in // tuple: [meta, consensus, consensus metrics, Flye fallback]
+    ch_meryl_db // tuple: [meta, meryl database], counted once per sample by the workflow
 
     main:
     ch_genome_size = ch_read_qc
         .splitCsv(header: true, sep: '\t')
         .map { meta, row -> [meta, row.genome_size_used] }
-
-    // One meryl database per sample, built here and passed to CHECKS, which used to build
-    // its own. Counting the reads once is the whole reason this moved.
-    ch_meryl_in = ch_reads
-        .join(ch_genome_size)
-        .multiMap { meta, reads, genome_size ->
-            reads: [meta, reads]
-            k: merylK(genome_size)
-        }
-    MERYL_COUNT(ch_meryl_in.reads, ch_meryl_in.k)
 
     // An assembler that produced nothing is not a candidate: every check below would fail
     // on an empty FASTA, and it could not win in any case.
@@ -64,7 +47,7 @@ workflow SCORING {
     SEQKIT_STATS_CANDIDATE(ch_scored)
     MERQURY_CANDIDATE(
         ch_scored.map { meta, assembly -> [meta.sample, meta, assembly] }
-            .combine(MERYL_COUNT.out.meryl_db.map { meta, db -> [meta.id, db] }, by: 0)
+            .combine(ch_meryl_db.map { meta, db -> [meta.id, db] }, by: 0)
             .map { _sample, meta, assembly, db -> [meta, db, assembly] }
     )
     MAP_READS_CANDIDATE(ch_scored.join(ch_candidate_reads))
@@ -115,5 +98,4 @@ workflow SCORING {
     assembly_source = SELECT_ASSEMBLY.out.summary
     scores = SCORE_ASSEMBLIES.out.scores
     circularity = CIRCULARISE.out.circularity
-    meryl_db = MERYL_COUNT.out.meryl_db
 }

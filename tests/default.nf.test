@@ -240,6 +240,47 @@ nextflow_pipeline {
         }
     }
 
+    test("an assembly from the samplesheet is assessed instead of reassembled") {
+        options "-stub"
+        tag "assess"
+
+        when {
+            params {
+                input = "${baseDir}/tests/data/assess_samplesheet.yml"
+                outdir = "$outputDir/results"
+                publish_outputs = true
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                // Neither sample is assembled or scored, so the whole of stages 3-5
+                // is absent; `noreads` additionally skips everything read-based.
+                { assert workflow.trace.tasks().every { !it.name.contains(':ASSEMBLY:') } },
+                { assert workflow.trace.tasks().every { !it.name.contains(':SCORING:') } },
+                { assert workflow.trace.tasks().every { !it.name.contains('noreads') || !it.name.contains('MAP_READS') } },
+                // Both still reach the finishing stage, the checks and a verdict.
+                { assert path("$outputDir/results/assemblies/noreads/final/noreads.fasta").exists() },
+                { assert path("$outputDir/results/assemblies/withreads/final/withreads.fasta").exists() },
+                // The assembly-only checks still ran for `noreads`.
+                { assert path("$outputDir/results/checks/noreads/noreads_checkm2_report.tsv").exists() },
+                { assert path("$outputDir/results/checks/noreads/noreads-bacteria_odb12-busco.batch_summary.txt").exists() },
+                // What a genome with no reads cannot be held to: it says so rather
+                // than failing on a measurement nothing took. (Circularity is the other
+                // such check; the dnaapler stub writes a `circular=` tag the real tool
+                // would not invent, so tests/test_qc_gates.py covers that one.)
+                { assert path("$outputDir/results/qc/noreads.qc.json").json.checks.read_depth.status == 'not_measured' },
+                { assert path("$outputDir/results/qc/noreads.qc.json").json.checks.merqury_qv.status == 'not_measured' },
+                { assert path("$outputDir/results/qc/noreads.qc.json").json.checks.unmapped_read_fraction.status == 'not_measured' },
+                { assert path("$outputDir/results/qc/noreads.qc.json").json.status == 'pass' },
+                // IDEEL needs no coverage, so it is measured either way.
+                { assert path("$outputDir/results/checks/noreads/noreads.ideel_summary.tsv").exists() },
+                { assert path("$outputDir/results/report/run_summary/qc_gates.tsv").text.contains('noreads') }
+            )
+        }
+    }
+
     test("missing database params fail before any task runs") {
         options "-stub"
 
@@ -254,7 +295,7 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.failed },
-                { assert workflow.stdout.any { it.contains('--sylph_gtdb_db') } || workflow.errorReport.contains('--sylph_gtdb_db') }
+                { assert (workflow.stdout + workflow.stderr).any { it.contains('--sylph_gtdb_db') } }
             )
         }
     }

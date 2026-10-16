@@ -1,0 +1,8 @@
+# Two existing genomes held to the same standard as a fresh assembly: one with the reads
+# it derives from, one without. The second gets a verdict from the assembly-only checks.
+- id: withreads
+  assembly: reference.fasta
+  reads: isolate01.hifi_reads.fastq
+  expected_taxon: g__Escherichia
+- id: noreads
+  assembly: reference.fasta

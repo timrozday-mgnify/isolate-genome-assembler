@@ -1,6 +1,11 @@
 # id                       required. Unique identifier made of letters, digits, '.', '_' or '-'.
-# reads                    required. HiFi FASTQ(.gz) or PacBio hifi_reads.bam; path or list.
-#                          Relative paths are resolved against this file's directory.
+# reads                    required unless 'assembly' is given. HiFi FASTQ(.gz) or PacBio
+#                          hifi_reads.bam; path or list. Relative paths are resolved
+#                          against this file's directory.
+# assembly                 optional. An existing genome FASTA(.gz) to assess instead of
+#                          assembling one: stages 4-5 are skipped and this is what gets
+#                          finished and checked. With 'reads' too, every check runs; on
+#                          its own, the read-based checks come back not_measured.
 # genome_size              optional. e.g. 5.2m. If omitted, Phase 1 estimates it.
 # expected_taxon           optional. GTDB-style lineage, e.g. "g__Escherichia".
 # reference                optional. Closest known complete genome FASTA.
@@ -9,3 +14,14 @@
 - id: isolate01
   reads: data/isolate01.hifi_reads.fastq.gz
   expected_taxon: g__Escherichia
+
+# An existing genome held to the same standard, with the reads it derives from.
+- id: reference01
+  assembly: genomes/reference01.fa.gz
+  reads: data/reference01.hifi_reads.fastq.gz
+  expected_taxon: g__Bacteroides
+
+# The same, where no reads for it could be found.
+- id: reference02
+  assembly: genomes/reference02.fa.gz
+  expected_taxon: g__Veillonella

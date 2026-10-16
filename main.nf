@@ -73,6 +73,7 @@ def parseSamplesheet(samplesheet) {
     def allowedKeys = [
         'id',
         'reads',
+        'assembly',
         'genome_size',
         'expected_taxon',
         'reference',
@@ -95,16 +96,25 @@ def parseSamplesheet(samplesheet) {
         if (!sampleIds.add(row.id)) {
             failSamplesheet("duplicate sample id '${row.id}'")
         }
-        if (row.reads == null) {
-            failSamplesheet("sample '${row.id}' is missing required key 'reads'")
+        // `reads` is required unless the sample is an existing genome being assessed,
+        // where the reads are the optional half: without them every read-based check is
+        // reported as not_measured rather than guessed at.
+        if (row.reads == null && row.assembly == null) {
+            failSamplesheet("sample '${row.id}' needs 'reads', 'assembly', or both")
+        }
+        if (row.assembly != null && row.autocycler_dir != null) {
+            failSamplesheet("sample '${row.id}' cannot have both 'assembly' and 'autocycler_dir'")
         }
 
-        def readValues = row.reads instanceof List ? row.reads : [row.reads]
-        if (readValues.isEmpty()) {
-            failSamplesheet("sample '${row.id}' key 'reads' must contain at least one path")
-        }
-        def readFiles = readValues.collect { read ->
-            resolveInputFile(read, samplesheetPath.parent, row.id, 'reads', ~/(?i).*\.(fastq|fq)(\.gz)?|.*\.bam/)
+        def readFiles = []
+        if (row.reads != null) {
+            def readValues = row.reads instanceof List ? row.reads : [row.reads]
+            if (readValues.isEmpty()) {
+                failSamplesheet("sample '${row.id}' key 'reads' must contain at least one path")
+            }
+            readFiles = readValues.collect { read ->
+                resolveInputFile(read, samplesheetPath.parent, row.id, 'reads', ~/(?i).*\.(fastq|fq)(\.gz)?|.*\.bam/)
+            }
         }
 
         def meta = [id: row.id]
@@ -116,6 +126,9 @@ def parseSamplesheet(samplesheet) {
         }
         if (isNonBlank(row.expected_taxon)) {
             meta.expected_taxon = row.expected_taxon.toString()
+        }
+        if (row.assembly != null) {
+            meta.assembly = resolveInputFile(row.assembly, samplesheetPath.parent, row.id, 'assembly', ~/(?i).*\.f(ast)?a(\.gz)?/)
         }
         if (row.reference != null) {
             meta.reference = resolveInputFile(row.reference, samplesheetPath.parent, row.id, 'reference', ~/(?i).*\.f(ast)?a(\.gz)?/)
@@ -131,19 +144,24 @@ def parseSamplesheet(samplesheet) {
     }
 }
 
-def requireDatabases() {
-    def missing = [
+// The read-based stages are skipped entirely for a samplesheet of assemblies with no
+// reads, so their databases are not required then.
+def requireDatabases(hasReads) {
+    def readDatabases = [
         'sylph_gtdb_db',
         'sylph_gtdb_taxonomy',
         'sylph_human_db',
         'human_reference',
         'plassembler_db',
+    ]
+    def missing = [
         'checkm2_db',
         'bakta_db',
         'busco_db',
         'gtdbtk_db',
         'ideel_db',
     ]
+        .plus(hasReads ? readDatabases : [])
         .findAll { !isNonBlank(params[it]) }
     if (missing) {
         error "Missing required database param(s): ${missing.collect { "--${it}" }.join(', ')}. Build them once with `nextflow run main.nf --prepare_databases`."
@@ -158,10 +176,11 @@ workflow {
         BUILD_DATABASES()
     }
     else {
-        ch_samples = params.input ? Channel.fromList(parseSamplesheet(params.input)) : Channel.empty()
+        def samples = params.input ? parseSamplesheet(params.input) : []
+        ch_samples = Channel.fromList(samples)
 
         if (params.input) {
-            requireDatabases()
+            requireDatabases(samples.any { _meta, reads -> reads })
         }
         else {
             log.info 'No --input supplied: validated an empty workflow. See assets/samplesheet.example.yml for the required YAML format.'

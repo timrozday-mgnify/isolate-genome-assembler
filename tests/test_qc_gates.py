@@ -242,3 +242,38 @@ def test_a_placed_species_is_still_gated(tmp_path: Path) -> None:
     contamination = write(tmp_path / "c.json", json.dumps(profile))
     result = run(tmp_path, rules, "--contamination", str(contamination))
     assert result["checks"]["dominant_species_abundance"]["status"] == "fail"
+
+
+# --- chromosome_not_circular: linear, unknown and closed are three different things ---
+
+
+def test_a_chromosome_with_no_circularity_call_is_not_measured(tmp_path: Path) -> None:
+    """A supplied FASTA has no `circular=` tag, which must not read as a failure."""
+    contigs = write(
+        tmp_path / "contigs.tsv",
+        "sample\treplicon_type\tcircular\ns1\tchromosome\t\n",
+    )
+    result = run(
+        tmp_path,
+        {"chromosome_not_circular": {"direction": "above", "fail": 1}},
+        "--contigs",
+        str(contigs),
+    )
+
+    assert result["checks"]["chromosome_not_circular"]["status"] == "not_measured"
+    assert result["status"] == "pass"
+
+
+def test_a_chromosome_called_linear_still_fails(tmp_path: Path) -> None:
+    contigs = write(
+        tmp_path / "contigs.tsv",
+        "sample\treplicon_type\tcircular\ns1\tchromosome\tfalse\n",
+    )
+    result = run(
+        tmp_path,
+        {"chromosome_not_circular": {"direction": "above", "fail": 1}},
+        "--contigs",
+        str(contigs),
+    )
+
+    assert result["checks"]["chromosome_not_circular"]["status"] == "fail"

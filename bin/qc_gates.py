@@ -81,10 +81,18 @@ def consensus_unresolved(path: Path | None) -> float | None:
 
 
 def chromosome_not_circular(path: Path | None) -> float | None:
+    """Chromosomes the assembly says are linear.
+
+    A blank ``circular`` is unknown, not linear: an assembly the samplesheet supplied
+    carries no such tag, and counting that as a failure would fail every closed reference
+    genome on a missing header field. A sample whose chromosomes are all unknown is not
+    measured here.
+    """
     rows = [row for row in read_tsv(path) if row.get("replicon_type") == "chromosome"]
-    if not rows:
+    known = [row for row in rows if row.get("circular") in ("true", "false")]
+    if not known:
         return None
-    return float(sum(row.get("circular") != "true" for row in rows))
+    return float(sum(row.get("circular") == "false" for row in known))
 
 
 def plasmid_depth_ratio(path: Path | None) -> float | None:

@@ -84,7 +84,7 @@ Every parameter is declared with an explanatory comment in
 ## Pipeline flow
 
 ```
-samplesheet (YAML): id, reads, optional reference / autocycler_dir
+samplesheet (YAML): id, reads and/or assembly, optional reference / autocycler_dir
         |
         v
 [1] READ QC ................ PREPARE_READS -> HiFiAdapterFilt -> seqkit stats, NanoPlot,
@@ -103,7 +103,8 @@ samplesheet (YAML): id, reads, optional reference / autocycler_dir
         +-------------------------------+
         |                               |
         v                               v
-[4] ASSEMBLY                        full read set
+[4] ASSEMBLY                                                        full read set
+    (both columns are skipped for a sample with a samplesheet `assembly`)
     Autocycler subsample            each --full_read_assemblers tool assembles all reads
     -> N subsets                    (Flye always, whether or not it is selected)
     -> every --assemblers tool             |
@@ -140,6 +141,42 @@ samplesheet (YAML): id, reads, optional reference / autocycler_dir
 
 `--prepare_databases` is a separate entry point that runs none of the above: it only
 downloads and builds the databases listed under [Databases](#databases).
+
+### Assessing a genome the pipeline did not assemble
+
+Give a sample an `assembly` instead of leaving it to be assembled, and stages 4 and 5 are
+skipped: the FASTA goes straight into finishing, the checks and the gates. This is how a
+published reference genome is held to the same acceptance criteria as a fresh assembly, so
+that a gate which trips on both is measuring the pipeline's conventions rather than the
+assembly.
+
+`reads` stays optional for such a sample. With reads, every check runs. Without them,
+stages 1-3 and every read-based check are skipped and come back `not_measured`, which
+never changes the sample's status — the verdict is honest about what was measured. What is
+still measured from the FASTA alone: CheckM2 completeness and contamination, BUSCO
+duplication, GTDB-Tk identity, the IDEEL truncation ratio, and the replicon layout.
+
+Two checks behave differently on a supplied assembly:
+
+- `chromosome_not_circular` reads the `circular=` tag this pipeline's assemblers write. A
+  submitted FASTA has no such tag, which is *unknown*, not linear, so the check is
+  `not_measured` rather than a failure.
+- `consensus_unresolved` has nothing to report: no consensus was built.
+
+`assembly` and `autocycler_dir` are mutually exclusive. The read-only databases
+(`--sylph_*`, `--human_reference`, `--plassembler_db`) are only required when at least one
+sample has reads.
+
+[`dev/reference_genome_gates.py`](dev/reference_genome_gates.py) does the whole thing for a
+collection of finished genomes: it asks ENA which reads each one derives from, writes the
+samplesheet, and fetches the runs it can actually use. See
+[the study](dev/reference_genome_gates.md).
+
+Reads must still be PacBio HiFi. Assessing a genome against Illumina, Nanopore or PacBio
+CLR reads is specified in
+[the multi-platform read checks plan](docs/multiplatform_read_checks_plan.md) and is not
+implemented: `MAP_READS` hardcodes `map-hifi`, `INSPECTOR` hardcodes `-d hifi`, and
+`--min_read_qv 20` would discard almost every ONT or CLR read.
 
 ## Outputs
 
