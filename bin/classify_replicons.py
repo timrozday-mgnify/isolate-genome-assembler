@@ -76,7 +76,13 @@ class Contig:
         self.original_name = header.split()[0]
         self.sequence = sequence
         self.length = len(sequence)
-        self.circular = (tag(header, "circular") or "").lower() == "true"
+        # Tri-state. An assembly this pipeline built always carries the tag; one the
+        # samplesheet supplied need not, and "no tag" means unknown, not linear. Only a
+        # contig known to be linear earns the flag or fails the circularity gate.
+        circular = (tag(header, "circular") or "").lower()
+        self.circular: bool | None = (
+            circular == "true" if circular in ("true", "false") else None
+        )
         depth = tag(header, "depth")
         self.depth = float(depth) if depth else None
         self.flags: list[str] = []
@@ -87,7 +93,8 @@ class Contig:
         parts = [self.name, f"length={self.length}"]
         if self.depth is not None:
             parts.append(f"depth={self.depth}")
-        parts.append(f"circular={'true' if self.circular else 'false'}")
+        if self.circular is not None:
+            parts.append(f"circular={'true' if self.circular else 'false'}")
         return " ".join(parts)
 
 
@@ -126,7 +133,7 @@ def flag(
     chromosome_depth = max(chromosome_depths) if chromosome_depths else None
 
     for contig in contigs:
-        if not contig.circular:
+        if contig.circular is False:
             contig.flags.append("linear")
         if contig.length < min_contig_len:
             contig.flags.append("short")
@@ -198,7 +205,7 @@ def write_outputs(contigs: list[Contig], args: argparse.Namespace) -> None:
                     contig.replicon_type,
                     contig.length,
                     "" if contig.depth is None else contig.depth,
-                    "true" if contig.circular else "false",
+                    "" if contig.circular is None else str(contig.circular).lower(),
                     ",".join(contig.flags),
                     "false" if contig in removed else "true",
                 ]

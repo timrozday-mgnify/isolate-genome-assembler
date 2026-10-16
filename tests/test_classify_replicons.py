@@ -159,3 +159,26 @@ def test_an_empty_assembly_writes_headers_and_no_contigs(tmp_path: Path) -> None
     result = run(tmp_path, "")
     assert result.rows == []
     assert result.final == ""
+
+
+UNTAGGED_GENOME = (
+    ">chr length=2000000\n" + "A" * 2_000_000 + "\n"
+    ">p1 length=5000\n" + "C" * 5_000 + "\n"
+)
+
+
+def test_a_contig_with_no_circular_tag_is_unknown_not_linear(tmp_path: Path) -> None:
+    """An assembly the samplesheet supplied carries no `circular=`; that is not a verdict."""
+    result = run(tmp_path, UNTAGGED_GENOME)
+
+    assert [row["circular"] for row in result.rows] == ["", ""]
+    # Unknown earns no `linear` flag, so --drop-flagged does not throw the contig away.
+    assert all("linear" not in row["flags"] for row in result.rows)
+    assert "circular=" not in result.final
+
+
+def test_a_contig_tagged_linear_is_still_flagged(tmp_path: Path) -> None:
+    result = run(tmp_path, ">chr length=100 circular=false\n" + "A" * 100 + "\n")
+
+    assert result.rows[0]["circular"] == "false"
+    assert "linear" in result.rows[0]["flags"]
